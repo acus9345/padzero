@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PADZERO // Cross-Language ABI &amp; Cache-Line Layout Workbench (REV 2.4)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-paper: #F3EFE6;
+      --bg-panel: #FAF8F3;
+      --bg-recessed: #EAE4D7;
+      --ink-primary: #141413;
+      --ink-secondary: #52504C;
+      --ink-muted: #7D7970;
+      --rule-strong: #141413;
+      --rule-subtle: #C9C3B5;
+      --accent-vermilion: #D9381E;
+      --accent-phosphor: #156B3A;
+      --accent-amber: #B86B00;
+      --accent-cobalt: #1B4F9C;
+      --hatch-pad: repeating-linear-gradient(
+        -45deg,
+        rgba(217, 56, 30, 0.14),
+        rgba(217, 56, 30, 0.14) 4px,
+        rgba(217, 56, 30, 0.34) 4px,
+        rgba(217, 56, 30, 0.34) 8px
+      );
+      --hatch-header: repeating-linear-gradient(
+        45deg,
+        rgba(82, 80, 76, 0.12),
+        rgba(82, 80, 76, 0.12) 3px,
+        rgba(82, 80, 76, 0.25) 3px,
+        rgba(82, 80, 76, 0.25) 6px
+      );
+    }
+
+    body.chassis-dark {
+      --bg-paper: #121311;
+      --bg-panel: #1A1B18;
+      --bg-recessed: #0C0D0B;
+      --ink-primary: #E8E4D9;
+      --ink-secondary: #A6A296;
+      --ink-muted: #6E6B62;
+      --rule-strong: #45443E;
+      --rule-subtle: #2A2B26;
+      --accent-vermilion: #FF5238;
+      --accent-phosphor: #29B865;
+      --accent-amber: #F09819;
+      --accent-cobalt: #5294FF;
+      --hatch-pad: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 82, 56, 0.14),
+        rgba(255, 82, 56, 0.14) 4px,
+        rgba(255, 82, 56, 0.36) 4px,
+        rgba(255, 82, 56, 0.36) 8px
+      );
+      --hatch-header: repeating-linear-gradient(
+        45deg,
+        rgba(166, 162, 150, 0.10),
+        rgba(166, 162, 150, 0.10) 3px,
+        rgba(166, 162, 150, 0.22) 3px,
+        rgba(166, 162, 150, 0.22) 6px
+      );
+    }
+
+    * {
+      box-sizing: border-box;
+      border-radius: 0px !important;
+    }
+
+    body {
+      background-color: var(--bg-paper);
+      color: var(--ink-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .font-mono-tech {
+      font-family: 'IBM Plex Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .font-display-tech {
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .datasheet-border {
+      border: 1px solid var(--rule-strong);
+    }
+
+    .datasheet-border-b {
+      border-bottom: 1px solid var(--rule-strong);
+    }
+
+    .datasheet-border-t {
+      border-top: 1px solid var(--rule-strong);
+    }
+
+    .datasheet-border-r {
+      border-right: 1px solid var(--rule-strong);
+    }
+
+    .subtle-border {
+      border: 1px solid var(--rule-subtle);
+    }
+
+    .subtle-border-b {
+      border-bottom: 1px solid var(--rule-subtle);
+    }
+
+    .bg-panel {
+      background-color: var(--bg-panel);
+    }
+
+    .bg-recessed {
+      background-color: var(--bg-recessed);
+    }
+
+    .pad-cell-hatch {
+      background-image: var(--hatch-pad);
+      border: 1px solid var(--accent-vermilion) !important;
+      color: var(--accent-vermilion);
+    }
+
+    .header-cell-hatch {
+      background-image: var(--hatch-header);
+      border: 1px solid var(--rule-subtle) !important;
+      color: var(--ink-secondary);
+    }
+
+    .hw-btn {
+      background-color: var(--bg-panel);
+      color: var(--ink-primary);
+      border: 1px solid var(--rule-strong);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: background-color 80ms linear, color 80ms linear, transform 40ms linear;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hw-btn:hover {
+      background-color: var(--ink-primary);
+      color: var(--bg-paper);
+    }
+
+    .hw-btn:active {
+      transform: translateY(1px);
+    }
+
+    .hw-btn-active {
+      background-color: var(--ink-primary) !important;
+      color: var(--bg-paper) !important;
+    }
+
+    .hw-btn-vermilion {
+      background-color: var(--accent-vermilion);
+      color: #FFFFFF;
+      border: 1px solid var(--rule-strong);
+    }
+
+    .hw-btn-vermilion:hover {
+      opacity: 0.9;
+      background-color: var(--accent-vermilion);
+      color: #FFFFFF;
+    }
+
+    .hw-btn-phosphor {
+      background-color: var(--accent-phosphor);
+      color: #FFFFFF;
+      border: 1px solid var(--rule-strong);
+    }
+
+    .hw-btn-phosphor:hover {
+      opacity: 0.92;
+      background-color: var(--accent-phosphor);
+      color: #FFFFFF;
+    }
+
+    .byte-cell {
+      height: 30px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      border: 1px solid var(--rule-subtle);
+      transition: outline 60ms linear;
+    }
+
+    .byte-cell:hover,
+    .byte-cell.byte-selected {
+      outline: 2px solid var(--ink-primary);
+      z-index: 10;
+    }
+
+    .straddle-badge {
+      background-color: var(--accent-amber);
+      color: #fff;
+      font-size: 9px;
+      padding: 1px 4px;
+      font-weight: 700;
+    }
+
+    .hot-badge {
+      background-color: var(--accent-vermilion);
+      color: #fff;
+      font-size: 9px;
+      padding: 1px 4px;
+      font-weight: 700;
+    }
+
+    textarea.code-input {
+      background-color: var(--bg-recessed);
+      color: var(--ink-primary);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      border: 1px solid var(--rule-strong);
+      resize: vertical;
+      outline: none;
+      padding: 10px 12px;
+    }
+
+    textarea.code-input:focus {
+      box-shadow: inset 3px 0 0 var(--accent-vermilion);
+    }
+
+    input.hw-input, select.hw-select {
+      background-color: var(--bg-recessed);
+      color: var(--ink-primary);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border: 1px solid var(--rule-strong);
+      padding: 4px 8px;
+      outline: none;
+    }
+
+    /* Custom range slider styled like a physical fader */
+    input[type="range"].hw-fader {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-recessed);
+      border: 1px solid var(--rule-strong);
+      outline: none;
+    }
+    input[type="range"].hw-fader::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 20px;
+      background: var(--accent-vermilion);
+      border: 1px solid var(--rule-strong);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP INSTRUMENTATION SPEC HEADER -->
+  <header class="datasheet-border-b bg-panel px-3 py-2">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <div class="px-2 py-0.5 font-mono-tech text-xs font-bold tracking-wider" style="background: var(--ink-primary); color: var(--bg-paper);">
+          PADZERO // REV 2.4
+        </div>
+        <div>
+          <h1 class="font-display-tech text-sm sm:text-base font-bold uppercase tracking-tight leading-none">
+            Cross-Language ABI Struct &amp; Tuple Memory Layout Analyzer
+          </h1>
+          <p class="font-mono-tech text-[11px] mt-0.5" style="color: var(--ink-secondary);">
+            STATIC BYTE-OFFSET COMPILER · 64B L1 CACHE-LINE INSPECTOR · FALSE-SHARING &amp; PADDING ELIMINATOR
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="font-mono-tech text-[10px] uppercase px-1.5 py-0.5 subtle-border" style="color: var(--ink-secondary);" title="Keyboard shortcuts work when outside text inputs">
+          KEYS: [O] PACK · [R] RESET · [C] COPY · [T] CHASSIS
+        </span>
+        <button id="btnToggleTheme" type="button" class="hw-btn" title="Switch between Archival Paper and Oscilloscope Dark Chassis">
+          <span id="themeIndicator" class="inline-block w-2 h-2" style="background: var(--ink-primary);"></span>
+          <span id="themeLabel">PAPER SPEC</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- PRESET & TARGET ABI BAR -->
+  <section class="datasheet-border-b bg-recessed px-3 py-2">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="font-mono-tech text-[11px] font-bold uppercase mr-1" style="color: var(--ink-secondary);">
+          BENCHMARK FIXTURE:
+        </span>
+        <button type="button" class="hw-btn preset-btn hw-btn-active" data-preset="c_orderbook">
+          01 / C11 HFT OrderNode
+        </button>
+        <button type="button" class="hw-btn preset-btn" data-preset="go_session">
+          02 / Go Session (struct{} Trap)
+        </button>
+        <button type="button" class="hw-btn preset-btn" data-preset="rust_telemetry">
+          03 / Rust #[repr(C)] u128 FFI
+        </button>
+        <button type="button" class="hw-btn preset-btn" data-preset="sql_ledger">
+          04 / PostgreSQL Column Tetris
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <label for="selectLang" class="font-mono-tech text-[11px] font-bold uppercase" style="color: var(--ink-secondary);">
+          TARGET ABI:
+        </label>
+        <select id="selectLang" class="hw-select">
+          <option value="auto">AUTO-DETECT</option>
+          <option value="c">C11 / C++20 (System V LP64)</option>
+          <option value="go">Go 1.22+ (gc amd64/arm64)</option>
+          <option value="rust">Rust #[repr(C)] (LP64)</option>
+          <option value="sql">PostgreSQL 16 (HeapTuple 24B hdr)</option>
+        </select>
+
+        <button id="btnPackNow" type="button" class="hw-btn hw-btn-phosphor" title="Reorder fields in editor to minimize alignment holes and tail padding">
+          [APPLY OPTIMAL PACKING]
+        </button>
+        <button id="btnResetPreset" type="button" class="hw-btn" title="Restore original unoptimized preset">
+          [RESET]
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOP TELEMETRY READOUT STRIP -->
+  <section class="datasheet-border-b bg-panel">
+    <div class="max-w-[1600px] mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 sm:divide-x divide-[#141413]">
+      <!-- Metric 1 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          01 // CURRENT FOOTPRINT
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricCurrSize" class="font-mono-tech text-xl font-bold">72 B</span>
+          <span id="metricCurrAlign" class="font-mono-tech text-[11px]" style="color: var(--ink-secondary);">align(8B)</span>
+        </div>
+        <div id="metricCurrBreakdown" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          48B payload + 24B pad
+        </div>
+      </div>
+
+      <!-- Metric 2 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          02 // WASTED ALIGNMENT PAD
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricPadBytes" class="font-mono-tech text-xl font-bold" style="color: var(--accent-vermilion);">24 B</span>
+          <span id="metricPadHoles" class="font-mono-tech text-[11px]" style="color: var(--ink-secondary);">5 holes</span>
+        </div>
+        <div id="metricEfficiency" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          66.7% packing density
+        </div>
+      </div>
+
+      <!-- Metric 3 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          03 // OPTIMAL PACKED TARGET
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricOptSize" class="font-mono-tech text-xl font-bold" style="color: var(--accent-phosphor);">48 B</span>
+          <span id="metricSavedPct" class="font-mono-tech text-[11px] font-bold" style="color: var(--accent-phosphor);">-33.3%</span>
+        </div>
+        <div id="metricOptBreakdown" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          Saves 24 B per instance
+        </div>
+      </div>
+
+      <!-- Metric 4 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          04 // 64B L1 CACHE LINES
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricCacheLines" class="font-mono-tech text-xl font-bold">2 → 1</span>
+          <span id="metricStraddleCount" class="font-mono-tech text-[11px]" style="color: var(--accent-amber);">1 split</span>
+        </div>
+        <div id="metricCacheSub" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          64-byte hardware line stride
+        </div>
+      </div>
+
+      <!-- Metric 5 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          05 // FALSE-SHARING AUDIT
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricHazards" class="font-mono-tech text-xl font-bold" style="color: var(--accent-vermilion);">1 HAZARD</span>
+        </div>
+        <div id="metricHazardSub" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          Hot atomics co-located in L1
+        </div>
+      </div>
+
+      <!-- Metric 6 -->
+      <div class="p-2.5">
+        <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+          06 // FLEET RAM RECLAIMED
+        </div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span id="metricFleetRam" class="font-mono-tech text-xl font-bold" style="color: var(--accent-phosphor);">228.88 MB</span>
+        </div>
+        <div id="metricFleetInstances" class="font-mono-tech text-[10px] mt-0.5" style="color: var(--ink-muted);">
+          @ 10,000,000 instances
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN WORKBENCH GRID -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 datasheet-border-b">
+
+    <!-- LEFT COLUMN: SOURCE CODE & FIELD TABLE MANIPULATOR (5 COLS) -->
+    <div class="lg:col-span-5 datasheet-border-r flex flex-col bg-panel">
+
+      <!-- Fixture Description Callout -->
+      <div class="px-3 py-2 subtle-border-b bg-recessed flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="badgeLang" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5" style="background: var(--ink-primary); color: var(--bg-paper);">
+              C11 ABI
+            </span>
+            <span id="labelStructName" class="font-mono-tech text-xs font-bold">
+              struct OrderTickNode
+            </span>
+          </div>
+          <p id="textPresetDesc" class="text-xs mt-1 leading-snug" style="color: var(--ink-secondary);">
+            Alternating 1B flags and 8B pointers/timestamps waste 24 bytes per node and split the struct across two 64B L1 cache lines.
+          </p>
+        </div>
+      </div>
+
+      <!-- Source Code Input -->
+      <div class="p-3 subtle-border-b">
+        <div class="flex items-center justify-between mb-1.5">
+          <label for="sourceEditor" class="font-mono-tech text-[11px] font-bold uppercase">
+            RAW DECLARATION INPUT (LIVE PARSER)
+          </label>
+          <span class="font-mono-tech text-[10px]" style="color: var(--ink-muted);">
+            Annotate with // @hot or atomic_* for contention check
+          </span>
+        </div>
+        <textarea id="sourceEditor" rows="12" class="code-input w-full" spellcheck="false"></textarea>
+      </div>
+
+      <!-- Interactive Field Order & Alignment Table -->
+      <div class="p-3 flex-1 flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-mono-tech text-[11px] font-bold uppercase">
+            PHYSICAL FIELD SEQUENCE &amp; MANUAL REORDERING
+          </span>
+          <div class="flex items-center gap-1">
+            <button id="btnReverseOrder" type="button" class="hw-btn" title="Reverse field order to test worst-case or inverted alignment">
+              [INVERT]
+            </button>
+            <button id="btnSortWorst" type="button" class="hw-btn" title="Interleave small and large fields to demonstrate maximum alignment waste">
+              [ADVERSARIAL INTERLEAVE]
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto subtle-border bg-recessed">
+          <table class="w-full text-left border-collapse font-mono-tech text-[11px]">
+            <thead>
+              <tr class="subtle-border-b" style="background: var(--bg-panel); color: var(--ink-secondary);">
+                <th class="py-1.5 px-2">#</th>
+                <th class="py-1.5 px-2">FIELD</th>
+                <th class="py-1.5 px-2">TYPE</th>
+                <th class="py-1.5 px-2 text-right">OFFSET</th>
+                <th class="py-1.5 px-2 text-right">SIZE</th>
+                <th class="py-1.5 px-2 text-right">ALIGN</th>
+                <th class="py-1.5 px-2 text-right">PAD BEFORE</th>
+                <th class="py-1.5 px-2 text-center">ORDER / HOT</th>
+              </tr>
+            </thead>
+            <tbody id="fieldTableBody" class="divide-y divide-[#C9C3B5]"></tbody>
+          </table>
+        </div>
+
+        <!-- Inline Quick-Add Field Form -->
+        <form id="formAddField" class="mt-2.5 pt-2.5 subtle-border-t flex flex-wrap items-center gap-1.5">
+          <span class="font-mono-tech text-[10px] font-bold uppercase mr-1" style="color: var(--ink-secondary);">
+            + APPEND FIELD:
+          </span>
+          <input id="inputNewFieldName" type="text" placeholder="field_name" class="hw-input w-28" required />
+          <select id="selectNewFieldType" class="hw-select"></select>
+          <label class="font-mono-tech text-[10px] flex items-center gap-1 px-1.5 py-1 subtle-border cursor-pointer">
+            <input id="checkNewFieldHot" type="checkbox" />
+            <span>@HOT/ATOMIC</span>
+          </label>
+          <button type="submit" class="hw-btn">
+            [+ INSERT]
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: HARDWARE BYTE MATRIX, DIFF & FALSE-SHARING LAB (7 COLS) -->
+    <div class="lg:col-span-7 flex flex-col bg-panel">
+
+      <!-- View Mode Tabs + Fleet Scale Slider -->
+      <div class="px-3 py-2 subtle-border-b bg-recessed flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-1">
+          <button type="button" class="hw-btn view-tab-btn hw-btn-active" data-tab="matrix">
+            01 // 64B CACHE-LINE BYTE MATRIX
+          </button>
+          <button type="button" class="hw-btn view-tab-btn" data-tab="compare">
+            02 // CURRENT vs PACKED DIFF
+          </button>
+          <button type="button" class="hw-btn view-tab-btn" data-tab="contention">
+            03 // FALSE-SHARING &amp; SCALE LAB
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+            RULER:
+          </span>
+          <button id="btnToggleHex" type="button" class="hw-btn">
+            OFFSET: HEX (0x)
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: 64B CACHE-LINE BYTE MATRIX -->
+      <div id="tabPanelMatrix" class="p-3 flex-1 flex flex-col gap-3">
+        <!-- Legend Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 subtle-border bg-recessed font-mono-tech text-[11px]">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="flex items-center gap-1.5">
+              <span class="inline-block w-3.5 h-3.5 pad-cell-hatch"></span>
+              <span>ALIGNMENT / TAIL PADDING HOLE (WASTED RAM)</span>
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="inline-block w-3.5 h-3.5 header-cell-hatch"></span>
+              <span>TUPLE HEADER (POSTGRES 24B)</span>
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="inline-block w-3.5 h-3.5" style="background: var(--accent-vermilion);"></span>
+              <span>@HOT / ATOMIC FIELD</span>
+            </span>
+          </div>
+          <span class="text-[10px]" style="color: var(--ink-secondary);">
+            CLICK ANY BYTE CELL TO LOCK TELEMETRY INSPECTOR
+          </span>
+        </div>
+
+        <!-- Selected Byte Inspector Readout -->
+        <div id="byteInspectorBox" class="px-3 py-2 datasheet-border bg-recessed font-mono-tech text-xs flex flex-wrap items-center justify-between gap-2">
+          <div id="byteInspectorMain">
+            <span class="font-bold">BYTE INSPECTOR //</span> Hover or click any byte cell below to inspect offset alignment, cache-line residency, and padding reason.
+          </div>
+          <div id="byteInspectorMeta" class="text-[11px]" style="color: var(--ink-secondary);">
+            64B L1 Line = 4 rows × 16 bytes
+          </div>
+        </div>
+
+        <!-- Dual Matrix Container: Current Layout vs Packed Preview -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <!-- Current Byte Map -->
+          <div class="subtle-border p-2.5 bg-panel">
+            <div class="flex items-center justify-between pb-1.5 mb-2 subtle-border-b">
+              <span class="font-mono-tech text-xs font-bold uppercase">
+                A // CURRENT MEMORY MAP (<span id="labelMatrixCurrBytes">72 B</span>)
+              </span>
+              <span id="labelMatrixCurrWaste" class="font-mono-tech text-[11px] font-bold" style="color: var(--accent-vermilion);">
+                24 B WASTED PAD
+              </span>
+            </div>
+            <div id="matrixCurrentContainer" class="space-y-1"></div>
+          </div>
+
+          <!-- Optimized Byte Map -->
+          <div class="subtle-border p-2.5 bg-panel">
+            <div class="flex items-center justify-between pb-1.5 mb-2 subtle-border-b">
+              <span class="font-mono-tech text-xs font-bold uppercase">
+                B // OPTIMAL PACKED MAP (<span id="labelMatrixOptBytes">48 B</span>)
+              </span>
+              <span id="labelMatrixOptWaste" class="font-mono-tech text-[11px] font-bold" style="color: var(--accent-phosphor);">
+                0 B WASTED PAD
+              </span>
+            </div>
+            <div id="matrixOptimizedContainer" class="space-y-1"></div>
+          </div>
+        </div>
+
+        <!-- Compiler & ABI Diagnostic Notes -->
+        <div class="subtle-border p-2.5 bg-recessed">
+          <div class="font-mono-tech text-[11px] font-bold uppercase mb-1.5">
+            ABI DIAGNOSTICS, PADDING HOLES &amp; CACHE-LINE SPLITS
+          </div>
+          <ul id="diagnosticList" class="font-mono-tech text-[11px] space-y-1"></ul>
+        </div>
+      </div>
+
+      <!-- TAB 2: CURRENT VS PACKED CODE DIFF -->
+      <div id="tabPanelCompare" class="p-3 flex-1 hidden flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 subtle-border bg-recessed">
+          <div>
+            <div class="font-mono-tech text-xs font-bold">
+              ZERO-COST REFACTORED DECLARATION // READY FOR PRODUCTION
+            </div>
+            <div class="font-mono-tech text-[11px]" style="color: var(--ink-secondary);">
+              Preserves exact field types and semantics while eliminating alignment holes via descending alignment bin-packing.
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btnCopyRefactored" type="button" class="hw-btn hw-btn-phosphor">
+              [COPY REFACTORED CODE]
+            </button>
+            <button id="btnApplyToEditor" type="button" class="hw-btn">
+              [LOAD INTO EDITOR]
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <div class="subtle-border p-2.5 bg-recessed flex flex-col">
+            <div class="font-mono-tech text-[11px] font-bold uppercase pb-1.5 mb-2 subtle-border-b">
+              REFACTORED SOURCE WITH OFFSET ANNOTATIONS
+            </div>
+            <pre id="preRefactoredCode" class="font-mono-tech text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap flex-1"></pre>
+          </div>
+
+          <div class="subtle-border p-2.5 bg-recessed flex flex-col">
+            <div class="font-mono-tech text-[11px] font-bold uppercase pb-1.5 mb-2 subtle-border-b">
+              FIELD OFFSET SHIFT TABLE (BEFORE → AFTER)
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left font-mono-tech text-[11px] border-collapse">
+                <thead>
+                  <tr class="subtle-border-b" style="color: var(--ink-secondary);">
+                    <th class="py-1 px-2">FIELD</th>
+                    <th class="py-1 px-2">SIZE/ALIGN</th>
+                    <th class="py-1 px-2 text-right">OLD OFFSET</th>
+                    <th class="py-1 px-2 text-right">NEW OFFSET</th>
+                    <th class="py-1 px-2 text-right">CACHE LINE</th>
+                  </tr>
+                </thead>
+                <tbody id="diffOffsetTableBody" class="divide-y divide-[#C9C3B5]"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: FALSE-SHARING & FLEET SCALE LAB -->
+      <div id="tabPanelContention" class="p-3 flex-1 hidden flex-col gap-3">
+        <!-- Fleet Scale Fader -->
+        <div class="subtle-border p-3 bg-recessed">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div>
+              <span class="font-mono-tech text-xs font-bold uppercase">
+                FLEET INSTANCE / TABLE ROW SCALE SIMULATOR
+              </span>
+              <p class="font-mono-tech text-[11px]" style="color: var(--ink-secondary);">
+                Adjust live in-memory allocation count or PostgreSQL table row count to project physical DRAM and L1 cache line savings.
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" class="hw-btn scale-preset-btn" data-scale="1000000">1M</button>
+              <button type="button" class="hw-btn scale-preset-btn hw-btn-active" data-scale="10000000">10M</button>
+              <button type="button" class="hw-btn scale-preset-btn" data-scale="100000000">100M</button>
+              <button type="button" class="hw-btn scale-preset-btn" data-scale="1000000000">1B</button>
+            </div>
+          </div>
+
+          <input id="sliderInstances" type="range" min="5" max="9" step="0.05" value="7" class="hw-fader my-2" />
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2">
+            <div class="p-2.5 subtle-border bg-panel">
+              <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+                CURRENT FLEET ALLOCATION
+              </div>
+              <div id="scaleCurrTotal" class="font-mono-tech text-lg font-bold mt-0.5">686.65 MB</div>
+              <div id="scaleCurrSub" class="font-mono-tech text-[10px]" style="color: var(--ink-muted);">10,000,000 × 72 B</div>
+            </div>
+            <div class="p-2.5 subtle-border bg-panel">
+              <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+                PACKED FLEET ALLOCATION
+              </div>
+              <div id="scaleOptTotal" class="font-mono-tech text-lg font-bold mt-0.5" style="color: var(--accent-phosphor);">457.76 MB</div>
+              <div id="scaleOptSub" class="font-mono-tech text-[10px]" style="color: var(--ink-muted);">10,000,000 × 48 B</div>
+            </div>
+            <div class="p-2.5 subtle-border bg-panel">
+              <div class="font-mono-tech text-[10px] uppercase" style="color: var(--ink-secondary);">
+                DRAM / 8KB PAGES RECLAIMED
+              </div>
+              <div id="scaleSavedTotal" class="font-mono-tech text-lg font-bold mt-0.5" style="color: var(--accent-vermilion);">228.88 MB</div>
+              <div id="scalePagesSub" class="font-mono-tech text-[10px]" style="color: var(--ink-muted);">29,296 Postgres 8KB pages saved</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multi-Core False Sharing Analyzer -->
+        <div class="subtle-border p-3 bg-panel flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 subtle-border-b">
+              <div>
+                <span class="font-mono-tech text-xs font-bold uppercase">
+                  MESI CACHE COHERENCE // ATOMIC FALSE-SHARING DETECTOR
+                </span>
+                <p class="font-mono-tech text-[11px]" style="color: var(--ink-secondary);">
+                  When two independent threads mutate separate <code class="px-1 bg-recessed">@hot</code> or <code class="px-1 bg-recessed">atomic</code> fields residing in the same 64-byte L1 cache line, each core invalidates the other core's L1 line via MESI Request-For-Ownership (RFO) broadcasts.
+                </p>
+              </div>
+              <button id="btnInjectCachePad" type="button" class="hw-btn hw-btn-vermilion">
+                [INJECT 64B CACHE-LINE GUARD PAD]
+              </button>
+            </div>
+
+            <div id="falseSharingContainer" class="space-y-2 font-mono-tech text-xs"></div>
+          </div>
+
+          <div class="mt-3 pt-2 subtle-border-t font-mono-tech text-[11px] flex flex-wrap items-center justify-between gap-2" style="color: var(--ink-secondary);">
+            <span>TIP: Toggle the [HOT] switch on any two fields in the left table to simulate concurrent writer contention.</span>
+            <span>HARDWARE TARGET: 64-BYTE L1D LINE (x86_64 / ARMv9 Neoverse)</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER STATUS & TOAST BAR -->
+  <footer class="bg-panel px-3 py-1.5 font-mono-tech text-[11px] flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-3">
+      <span id="statusToast" class="font-bold" style="color: var(--accent-phosphor);">
+        READY // STATIC ENGINE INITIALIZED (ZERO COMPILER DEPENDENCY)
+      </span>
+    </div>
+    <div style="color: var(--ink-secondary);">
+      PADZERO REPOSITORY WORKBENCH · C11 / GO / RUST / POSTGRESQL TUPLE PACKER
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // PADZERO CORE STATIC ABI & TUPLE LAYOUT ENGINE (IN-BROWSER MIRROR)
+    // =========================================================================
+
+    const CACHE_LINE_BYTES = 64;
+    const POSTGRES_HEADER_BYTES = 24;
+
+    const FIELD_PALETTE = [
+      { bg: 'rgba(27, 79, 156, 0.18)', border: '#1B4F9C', text: '#1B4F9C' },
+      { bg: 'rgba(21, 107, 58, 0.18)', border: '#156B3A', text: '#156B3A' },
+      { bg: 'rgba(184, 107, 0, 0.18)', border: '#B86B00', text: '#945600' },
+      { bg: 'rgba(112, 48, 160, 0.16)', border: '#7030A0', text: '#7030A0' },
+      { bg: 'rgba(0, 122, 135, 0.18)', border: '#007A87', text: '#00626D' },
+      { bg: 'rgba(140, 70, 40, 0.18)', border: '#8C4628', text: '#8C4628' },
+      { bg: 'rgba(60, 90, 20, 0.18)', border: '#3C5A14', text: '#3C5A14' },
+      { bg: 'rgba(150, 35, 90, 0.16)', border: '#96235A', text: '#96235A' }
+    ];
+
+    const C_TYPES = {
+      'char': [1, 1], 'signed char': [1, 1], 'unsigned char': [1, 1],
+      'bool': [1, 1], '_Bool': [1, 1], 'int8_t': [1, 1], 'uint8_t': [1, 1], 'atomic_bool': [1, 1],
+      'short': [2, 2], 'unsigned short': [2, 2], 'int16_t': [2, 2], 'uint16_t': [2, 2],
+      'int': [4, 4], 'unsigned int': [4, 4], 'int32_t': [4, 4], 'uint32_t': [4, 4],
+      'float': [4, 4], 'atomic_int': [4, 4], 'atomic_uint': [4, 4],
+      'long': [8, 8], 'unsigned long': [8, 8], 'long long': [8, 8], 'unsigned long long': [8, 8],
+      'int64_t': [8, 8], 'uint64_t': [8, 8], 'size_t': [8, 8], 'ssize_t': [8, 8],
+      'uintptr_t': [8, 8], 'ptrdiff_t': [8, 8], 'double': [8, 8],
+      'atomic_llong': [8, 8], 'atomic_ullong': [8, 8], 'atomic_size_t': [8, 8],
+      'void *': [8, 8], '__int128': [16, 16], 'unsigned __int128': [16, 16], 'long double': [16, 16]
+    };
+
+    const GO_TYPES = {
+      'bool': [1, 1], 'byte': [1, 1], 'uint8': [1, 1], 'int8': [1, 1], 'atomic.Bool': [1, 1],
+      'uint16': [2, 2], 'int16': [2, 2],
+      'uint32': [4, 4], 'int32': [4, 4], 'rune': [4, 4], 'float32': [4, 4], 'atomic.Int32': [4, 4],
+      'sync.Mutex': [8, 4],
+      'uint64': [8, 8], 'int64': [8, 8], 'int': [8, 8], 'uint': [8, 8], 'uintptr': [8, 8],
+      'float64': [8, 8], 'time.Duration': [8, 8], 'atomic.Int64': [8, 8], 'atomic.Uint64': [8, 8],
+      'string': [16, 8], 'error': [16, 8], 'any': [16, 8], 'interface{}': [16, 8],
+      '[]byte': [24, 8], 'time.Time': [24, 8], 'struct{}': [0, 1]
+    };
+
+    const RUST_TYPES = {
+      'bool': [1, 1], 'u8': [1, 1], 'i8': [1, 1], 'AtomicBool': [1, 1], 'AtomicU8': [1, 1],
+      'u16': [2, 2], 'i16': [2, 2], 'AtomicU16': [2, 2],
+      'u32': [4, 4], 'i32': [4, 4], 'f32': [4, 4], 'char': [4, 4], 'AtomicU32': [4, 4],
+      'u64': [8, 8], 'i64': [8, 8], 'f64': [8, 8], 'usize': [8, 8], 'isize': [8, 8],
+      'AtomicU64': [8, 8], 'AtomicI64': [8, 8], 'AtomicUsize': [8, 8],
+      'u128': [16, 16], 'i128': [16, 16],
+      'String': [24, 8], 'Vec<u8>': [24, 8], '()': [0, 1]
+    };
+
+    const SQL_TYPES = {
+      'BOOLEAN': [1, 1], 'BOOL': [1, 1], '"CHAR"': [1, 1],
+      'SMALLINT': [2, 2], 'INT2': [2, 2],
+      'INTEGER': [4, 4], 'INT': [4, 4], 'INT4': [4, 4], 'REAL': [4, 4], 'DATE': [4, 4],
+      'BIGINT': [8, 8], 'INT8': [8, 8], 'DOUBLE PRECISION': [8, 8], 'TIMESTAMPTZ': [8, 8],
+      'TIMESTAMP': [8, 8], 'MONEY': [8, 8],
+      'UUID': [16, 1], 'INTERVAL': [16, 8]
+    };
+
+    const PRESETS = {
+      c_orderbook: {
+        title: 'C11 HFT OrderBook Tick Node',
+        language: 'c',
+        description: 'Alternating 1B flags and 8B pointers/timestamps waste 24 bytes per node and split the struct across two 64B L1 cache lines.',
+        code: `struct OrderTickNode {
+    bool is_aggressive;          // 1B flag
+    uint64_t order_id;           // 8B identifier
+    uint8_t venue_id;            // 1B exchange code
+    double limit_price;          // 8B IEEE-754 price
+    char side_flag;              // 1B 'B' or 'S'
+    uint64_t match_ns;           // 8B nanosecond timestamp
+    uint16_t flags;              // 2B bitfield
+    void *next_order;            // 8B pointer
+    uint8_t shard_tag[3];        // 3B routing tag
+    atomic_ullong producer_seq;  // 8B @hot producer cursor
+    atomic_ullong consumer_seq;  // 8B @hot consumer cursor
+};`
+      },
+      go_session: {
+        title: 'Go Concurrent Worker Session (with struct{} Trap)',
+        language: 'go',
+        description: 'Includes Go’s infamous trailing zero-sized struct{} padding trap (+8B tail pad) plus interleaved bools and 16B/24B slice headers.',
+        code: `type SessionWorker struct {
+    Active       bool           // 1B + 7B hidden pad
+    TenantID     uint64         // 8B
+    Compression  uint8          // 1B + 7B hidden pad
+    Endpoint     string         // 16B string header (ptr+len)
+    RetryCount   uint16         // 2B + 6B hidden pad
+    PayloadBuf   []byte         // 24B slice header (ptr+len+cap)
+    WriteHits    atomic.Int64   // 8B @hot atomic counter
+    ReadHits     atomic.Int64   // 8B @hot atomic counter
+    noCopy       struct{}       // 0B trailing field forces +8B tail pad!
+}`
+      },
+      rust_telemetry: {
+        title: 'Rust #[repr(C)] FFI Telemetry Frame',
+        language: 'rust',
+        description: 'FFI #[repr(C)] disables Rust compiler field reordering, leaving 28 bytes of alignment holes around 16B-aligned u128 and String headers.',
+        code: `#[repr(C)]
+pub struct TelemetryFrame {
+    pub version: u8,             // 1B
+    pub trace_id: u128,          // 16B (requires 16B alignment!)
+    pub sampled: bool,           // 1B
+    pub span_id: u64,            // 8B
+    pub status_code: u16,        // 2B
+    pub service_name: String,    // 24B (align 8)
+    pub cpu_cycles: AtomicU64,   // 8B @hot
+    pub drop_count: AtomicU64,   // 8B @hot
+    pub region_code: [u8; 3],    // 3B
+}`
+      },
+      sql_ledger: {
+        title: 'PostgreSQL Ledger Table (HeapTuple Column Tetris)',
+        language: 'sql',
+        description: 'Interleaving SMALLINT/BOOLEAN with BIGINT/TIMESTAMPTZ after the 24-byte HeapTupleHeader wastes 20 bytes per row on disk and in shared_buffers.',
+        code: `CREATE TABLE ledger_events (
+    is_settled BOOLEAN NOT NULL,
+    account_id BIGINT NOT NULL,
+    region_id SMALLINT NOT NULL,
+    settled_at TIMESTAMPTZ NOT NULL,
+    fee_tier BOOLEAN NOT NULL,
+    amount_cents BIGINT NOT NULL,
+    currency_code SMALLINT NOT NULL,
+    tx_uuid UUID NOT NULL,
+    audit_seq BIGINT NOT NULL
+);`
+      }
+    };
+
+    const state = {
+      activePreset: 'c_orderbook',
+      langOverride: 'auto',
+      resolvedLang: 'c',
+      structName: 'OrderTickNode',
+      fields: [],
+      hexRuler: true,
+      activeTab: 'matrix',
+      instances: 10000000,
+      selectedByteIndex: null,
+      selectedMatrixSide: 'current',
+      darkTheme: false
+    };
+
+    function alignUp(offset, align) {
+      if (align <= 1) return offset;
+      const rem = offset % align;
+      return rem === 0 ? offset : offset + (align - rem);
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+
+    function detectLanguage(source) {
+      const s = source.trim();
+      if (/\bCREATE\s+TABLE\b/i.test(s)) return 'sql';
+      if (/\btype\s+\w+\s+struct\b/.test(s)) return 'go';
+      if (/\b(?:pub\s+)?struct\s+\w+\s*\{/.test(s) && /\b\w+\s*:\s*[\w<\[\]&]/.test(s)) return 'rust';
+      return 'c';
+    }
+
+    function isHotOrAtomic(name, rawType, comment) {
+      const combined = `${name} ${rawType} ${comment || ''}`.toLowerCase();
+      return ['atomic', '_atomic', 'mutex', 'rwmutex', 'spinlock', '@hot', '@atomic', 'producer_seq', 'consumer_seq'].some(k => combined.includes(k));
+    }
+
+    function parseSource(source, langOverride) {
+      const lang = langOverride === 'auto' ? detectLanguage(source) : langOverride;
+      let structName = 'AnonymousStruct';
+      const fields = [];
+
+      if (lang === 'c') {
+        const m = source.match(/struct\s+(\w+)\s*\{/);
+        if (m) structName = m[1];
+        const firstBrace = source.indexOf('{');
+        const lastBrace = source.lastIndexOf('}');
+        const body = (firstBrace !== -1 && lastBrace > firstBrace) ? source.slice(firstBrace + 1, lastBrace) : source;
+        for (const rawLine of body.split('\n')) {
+          let line = rawLine.trim();
+          if (!line || line.startsWith('//') || line.startsWith('/*')) continue;
+          let comment = '';
+          if (line.includes('//')) {
+            const parts = line.split('//');
+            line = parts[0].trim();
+            comment = parts.slice(1).join('//').trim();
+          }
+          line = line.replace(/\/\*.*?\*\//g, '').trim();
+          if (!line.endsWith(';')) continue;
+          const decl = line.slice(0, -1).trim();
+          if (!decl) continue;
+
+          let fieldName = '';
+          let typePart = '';
+          let count = 1;
+          const arrMatch = decl.match(/(\w+)\s*\[(\d+)\]\s*$/);
+          if (arrMatch) {
+            fieldName = arrMatch[1];
+            count = Math.max(1, parseInt(arrMatch[2], 10));
+            typePart = decl.slice(0, arrMatch.index).trim();
+          } else {
+            const ptrMatch = decl.match(/(\*+)\s*(\w+)\s*$/);
+            if (ptrMatch) {
+              fieldName = ptrMatch[2];
+              typePart = decl.slice(0, ptrMatch.index + ptrMatch[1].length).trim();
+            } else {
+              const lastSpace = decl.lastIndexOf(' ');
+              if (lastSpace === -1) continue;
+              typePart = decl.slice(0, lastSpace).trim();
+              fieldName = decl.slice(lastSpace + 1).trim();
+            }
+          }
+          const cleanType = typePart.replace(/\b(volatile|const|restrict|_Atomic)\b/g, '').replace(/\s+/g, ' ').trim();
+          let size = 4, align = 4;
+          if (typePart.includes('*')) {
+            size = 8; align = 8;
+          } else if (C_TYPES[cleanType]) {
+            [size, align] = C_TYPES[cleanType];
+          }
+          const displayType = count > 1 ? `${typePart}[${count}]` : typePart;
+          fields.push({
+            name: fieldName,
+            rawType: displayType,
+            size,
+            align,
+            count,
+            isHot: isHotOrAtomic(fieldName, displayType, comment),
+            isZero: false,
+            nullable: false,
+            comment
+          });
+        }
+      } else if (lang === 'go') {
+        const m = source.match(/type\s+(\w+)\s+struct\s*\{/);
+        if (m) structName = m[1];
+        const firstBrace = source.indexOf('{');
+        const lastBrace = source.lastIndexOf('}');
+        const body = (firstBrace !== -1 && lastBrace > firstBrace) ? source.slice(firstBrace + 1, lastBrace) : source;
+        for (const rawLine of body.split('\n')) {
+          let line = rawLine.trim();
+          if (!line || line.startsWith('//')) continue;
+          let comment = '';
+          if (line.includes('//')) {
+            const parts = line.split('//');
+            line = parts[0].trim();
+            comment = parts.slice(1).join('//').trim();
+          }
+          line = line.replace(/`[^`]*`/g, '').trim();
+          if (!line) continue;
+          const parts = line.split(/\s+/);
+          if (parts.length < 2) continue;
+          const fieldName = parts[0];
+          const typePart = parts.slice(1).join(' ');
+          let count = 1;
+          let baseType = typePart;
+          const arrMatch = typePart.match(/^\[(\d+)\](.+)$/);
+          if (arrMatch) {
+            count = Math.max(1, parseInt(arrMatch[1], 10));
+            baseType = arrMatch[2].trim();
+          }
+          let size = 8, align = 8, isZero = false;
+          if (baseType === 'struct{}') {
+            size = 0; align = 1; isZero = true;
+          } else if (baseType.startsWith('*') || baseType.startsWith('map[') || baseType.startsWith('chan ')) {
+            size = 8; align = 8;
+          } else if (baseType.startsWith('[]')) {
+            size = 24; align = 8;
+          } else if (GO_TYPES[baseType]) {
+            [size, align] = GO_TYPES[baseType];
+          }
+          fields.push({
+            name: fieldName,
+            rawType: typePart,
+            size,
+            align,
+            count,
+            isHot: isHotOrAtomic(fieldName, typePart, comment),
+            isZero,
+            nullable: false,
+            comment
+          });
+        }
+      } else if (lang === 'rust') {
+        const m = source.match(/struct\s+(\w+)\s*\{/);
+        if (m) structName = m[1];
+        const firstBrace = source.indexOf('{');
+        const lastBrace = source.lastIndexOf('}');
+        const body = (firstBrace !== -1 && lastBrace > firstBrace) ? source.slice(firstBrace + 1, lastBrace) : source;
+        for (const rawLine of body.split('\n')) {
+          let line = rawLine.trim();
+          if (!line || line.startsWith('//') || line.startsWith('#[')) continue;
+          let comment = '';
+          if (line.includes('//')) {
+            const parts = line.split('//');
+            line = parts[0].trim();
+            comment = parts.slice(1).join('//').trim();
+          }
+          line = line.replace(/,$/, '').trim();
+          const colonIdx = line.indexOf(':');
+          if (colonIdx === -1) continue;
+          const fieldName = line.slice(0, colonIdx).replace(/^\s*pub(?:\([^)]*\))?\s+/, '').trim();
+          const typePart = line.slice(colonIdx + 1).trim();
+          let count = 1;
+          let baseType = typePart;
+          const arrMatch = typePart.match(/^\[([^;]+);\s*(\d+)\]$/);
+          if (arrMatch) {
+            baseType = arrMatch[1].trim();
+            count = Math.max(1, parseInt(arrMatch[2], 10));
+          }
+          let size = 8, align = 8, isZero = false;
+          if (baseType === '()' || baseType.startsWith('PhantomData')) {
+            size = 0; align = 1; isZero = true;
+          } else if (baseType.startsWith('&') || baseType.startsWith('*') || baseType.startsWith('Box<')) {
+            size = 8; align = 8;
+          } else if (baseType.startsWith('Vec<')) {
+            size = 24; align = 8;
+          } else if (RUST_TYPES[baseType]) {
+            [size, align] = RUST_TYPES[baseType];
+          }
+          fields.push({
+            name: fieldName,
+            rawType: typePart,
+            size,
+            align,
+            count,
+            isHot: isHotOrAtomic(fieldName, typePart, comment),
+            isZero,
+            nullable: false,
+            comment
+          });
+        }
+      } else if (lang === 'sql') {
+        const m = source.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w.]+)\s*\(/i);
+        if (m) structName = m[1];
+        const firstParen = source.indexOf('(');
+        const lastParen = source.lastIndexOf(')');
+        const body = (firstParen !== -1 && lastParen > firstParen)
+          ? source.slice(firstParen + 1, lastParen)
+          : source;
+        for (const rawLine of body.split('\n')) {
+          let line = rawLine.trim();
+          if (!line || line.startsWith('--')) continue;
+          let comment = '';
+          if (line.includes('--')) {
+            const parts = line.split('--');
+            line = parts[0].trim();
+            comment = parts.slice(1).join('--').trim();
+          }
+          line = line.replace(/,$/, '').trim();
+          if (!line) continue;
+          if (/^(PRIMARY\s+KEY|FOREIGN\s+KEY|CONSTRAINT|UNIQUE|CHECK)\b/i.test(line)) continue;
+          const parts = line.split(/\s+/);
+          if (parts.length < 2) continue;
+          const colName = parts[0].replace(/^"|"$/g, '');
+          const rest = parts.slice(1).join(' ');
+          const nullable = !/\b(NOT\s+NULL|PRIMARY\s+KEY)\b/i.test(rest);
+          const typeClean = rest.split(/\b(?:NOT\s+NULL|NULL|DEFAULT|PRIMARY\s+KEY|REFERENCES|UNIQUE|CHECK)\b/i)[0].trim().toUpperCase();
+          let size = 8, align = 4;
+          const charMatch = typeClean.match(/^(?:CHARACTER|CHAR)\s*\((\d+)\)$/);
+          if (charMatch) {
+            const n = parseInt(charMatch[1], 10);
+            size = n + 1;
+            align = n > 1 ? 4 : 1;
+          } else if (SQL_TYPES[typeClean]) {
+            [size, align] = SQL_TYPES[typeClean];
+          }
+          fields.push({
+            name: colName,
+            rawType: typeClean,
+            size,
+            align,
+            count: 1,
+            isHot: false,
+            isZero: false,
+            nullable,
+            comment
+          });
+        }
+      }
+
+      return { lang, structName, fields };
+    }
+
+    function computeLayout(structName, lang, fields) {
+      const headerBytes = lang === 'sql' ? POSTGRES_HEADER_BYTES : 0;
+      let offset = headerBytes;
+      let maxAlign = lang === 'sql' ? 8 : 1;
+      const placed = [];
+      const holes = [];
+      const notes = [];
+
+      if (lang === 'sql') {
+        notes.push('PostgreSQL HeapTupleHeaderData occupies 23B + 1B t_hoff MAXALIGN(8) pad = 24B prefix before column 1.');
+      }
+
+      fields.forEach((f, idx) => {
+        const isLast = idx === fields.length - 1;
+        const effAlign = Math.max(1, f.align);
+        maxAlign = Math.max(maxAlign, effAlign);
+        const alignedOffset = alignUp(offset, effAlign);
+        const padBefore = alignedOffset - offset;
+        if (padBefore > 0) {
+          holes.push({
+            offset,
+            size: padBefore,
+            reason: `Align '${f.name}' (${f.rawType}) to ${effAlign}-byte boundary`,
+            kind: 'inter-field'
+          });
+        }
+        offset = alignedOffset;
+        const totalFieldBytes = f.size * f.count;
+
+        if (lang === 'go' && f.isZero && isLast && offset > 0) {
+          holes.push({
+            offset,
+            size: 1,
+            reason: `Go ABI Trap: trailing zero-sized '${f.name}' (struct{}) forces 1 guard byte + tail alignment!`,
+            kind: 'zero-sized-guard'
+          });
+          notes.push(`Go ABI Trap: Trailing zero-sized field '${f.name}' at the end of a non-empty struct forces 1 guard byte + tail alignment padding.`);
+          const cl = Math.floor(offset / CACHE_LINE_BYTES);
+          placed.push({
+            ...f,
+            colorIdx: idx % FIELD_PALETTE.length,
+            offset,
+            totalBytes: 0,
+            padBefore,
+            cacheLineStart: cl,
+            cacheLineEnd: cl,
+            straddles: false
+          });
+          offset += 1;
+          return;
+        }
+
+        const clStart = Math.floor(offset / CACHE_LINE_BYTES);
+        const clEnd = totalFieldBytes > 0 ? Math.floor((offset + totalFieldBytes - 1) / CACHE_LINE_BYTES) : clStart;
+        const straddles = totalFieldBytes > 0 && clStart !== clEnd;
+        if (straddles) {
+          notes.push(`Cache-Line Split: '${f.name}' (${f.rawType}) straddles 64B cache line boundary at 0x${((clStart + 1) * 64).toString(16).toUpperCase().padStart(2, '0')}.`);
+        }
+
+        placed.push({
+          ...f,
+          colorIdx: idx % FIELD_PALETTE.length,
+          offset,
+          totalBytes: totalFieldBytes,
+          padBefore,
+          cacheLineStart: clStart,
+          cacheLineEnd: clEnd,
+          straddles
+        });
+        offset += totalFieldBytes;
+      });
+
+      const totalSize = offset > 0 ? alignUp(offset, maxAlign) : 0;
+      const tailPad = totalSize - offset;
+      if (tailPad > 0) {
+        holes.push({
+          offset,
+          size: tailPad,
+          reason: `Tail padding to satisfy struct alignment stride (${maxAlign}B)`,
+          kind: 'tail'
+        });
+      }
+
+      const payloadBytes = fields.reduce((acc, f) => acc + f.size * f.count, 0);
+      const paddingBytes = holes.reduce((acc, h) => acc + h.size, 0);
+      const cacheLinesSpanned = totalSize > 0 ? Math.ceil(totalSize / CACHE_LINE_BYTES) : 0;
+      const denom = totalSize - headerBytes;
+      const efficiencyPct = denom > 0 ? ((payloadBytes / denom) * 100) : 100;
+
+      // False-sharing hazards
+      const hazards = [];
+      const hotFields = placed.filter(pf => pf.isHot);
+      for (let i = 0; i < hotFields.length; i++) {
+        for (let j = i + 1; j < hotFields.length; j++) {
+          const a = hotFields[i];
+          const b = hotFields[j];
+          if (a.cacheLineStart === b.cacheLineStart || a.cacheLineEnd === b.cacheLineStart) {
+            const dist = Math.max(0, b.offset - (a.offset + a.totalBytes));
+            hazards.push({
+              cacheLine: a.cacheLineStart,
+              fieldA: a.name,
+              fieldB: b.name,
+              offsetA: a.offset,
+              offsetB: b.offset,
+              distance: dist
+            });
+          }
+        }
+      }
+
+      return {
+        structName,
+        lang,
+        headerBytes,
+        payloadBytes,
+        paddingBytes,
+        tailPad,
+        totalSize,
+        structAlign: maxAlign,
+        cacheLinesSpanned,
+        efficiencyPct,
+        placed,
+        holes,
+        hazards,
+        notes
+      };
+    }
+
+    function optimizeFields(fields, lang) {
+      if (!fields.length) return [];
+      const zeroFields = fields.filter(f => f.isZero || (f.size * f.count === 0));
+      const nonZero = fields
+        .map((f, origIdx) => ({ f, origIdx }))
+        .filter(item => !(item.f.isZero || (item.f.size * item.f.count === 0)));
+
+      nonZero.sort((a, b) => {
+        if (b.f.align !== a.f.align) return b.f.align - a.f.align;
+        const sizeB = b.f.size * b.f.count;
+        const sizeA = a.f.size * a.f.count;
+        if (sizeB !== sizeA) return sizeB - sizeA;
+        return a.origIdx - b.origIdx;
+      });
+
+      const ordered = [...zeroFields];
+      let offset = lang === 'sql' ? POSTGRES_HEADER_BYTES : 0;
+      const pool = [...nonZero];
+
+      while (pool.length > 0) {
+        let zeroPadIdx = -1;
+        for (let i = 0; i < pool.length; i++) {
+          if (alignUp(offset, pool[i].f.align) === offset) {
+            zeroPadIdx = i;
+            break;
+          }
+        }
+        const chosen = zeroPadIdx !== -1 ? pool.splice(zeroPadIdx, 1)[0].f : pool.shift().f;
+        offset = alignUp(offset, chosen.align) + (chosen.size * chosen.count);
+        ordered.push(chosen);
+      }
+      return ordered;
+    }
+
+    function generateSourceFromFields(structName, lang, fields, report, includeHeaderComment = true) {
+      const placedMap = {};
+      if (report && report.placed) {
+        report.placed.forEach(pf => { placedMap[pf.name] = pf; });
+      }
+      const lines = [];
+      if (includeHeaderComment && report) {
+        const prefix = lang === 'sql' ? '--' : '//';
+        lines.push(`${prefix} Optimized by padzero: ${report.totalSize}B total (${report.paddingBytes}B pad, ${report.efficiencyPct.toFixed(1)}% density)`);
+      }
+
+      if (lang === 'c') {
+        lines.push(`struct ${structName} {`);
+        fields.forEach(f => {
+          const pf = placedMap[f.name];
+          let baseT = f.rawType;
+          let arrSuffix = '';
+          const m = f.rawType.match(/^(.+)\[(\d+)\]$/);
+          if (m) {
+            baseT = m[1];
+            arrSuffix = `[${m[2]}]`;
+          }
+          const hotTag = f.isHot && !/atomic/i.test(f.rawType) ? ' @hot' : '';
+          const meta = pf
+            ? ` // offset: ${String(pf.offset).padStart(2, ' ')}B | size: ${String(pf.totalBytes).padStart(2, ' ')}B | align: ${pf.align}B${hotTag}`
+            : (f.isHot ? ' // @hot' : '');
+          lines.push(`    ${baseT} ${f.name}${arrSuffix};${meta}`);
+        });
+        lines.push('};');
+      } else if (lang === 'go') {
+        lines.push(`type ${structName} struct {`);
+        fields.forEach(f => {
+          const pf = placedMap[f.name];
+          const hotTag = f.isHot && !/atomic/i.test(f.rawType) ? ' @hot' : '';
+          const meta = pf
+            ? ` // offset: ${String(pf.offset).padStart(2, ' ')}B | size: ${String(pf.totalBytes).padStart(2, ' ')}B | align: ${pf.align}B${hotTag}`
+            : (f.isHot ? ' // @hot' : '');
+          lines.push(`    ${f.name.padEnd(16, ' ')} ${f.rawType.padEnd(14, ' ')}${meta}`);
+        });
+        lines.push('}');
+      } else if (lang === 'rust') {
+        lines.push('#[repr(C)]');
+        lines.push(`pub struct ${structName} {`);
+        fields.forEach(f => {
+          const pf = placedMap[f.name];
+          const hotTag = f.isHot && !/Atomic/i.test(f.rawType) ? ' @hot' : '';
+          const meta = pf
+            ? ` // offset: ${String(pf.offset).padStart(2, ' ')}B | size: ${String(pf.totalBytes).padStart(2, ' ')}B | align: ${pf.align}B${hotTag}`
+            : (f.isHot ? ' // @hot' : '');
+          lines.push(`    pub ${f.name}: ${f.rawType},${meta}`);
+        });
+        lines.push('}');
+      } else if (lang === 'sql') {
+        lines.push(`CREATE TABLE ${structName} (`);
+        fields.forEach((f, idx) => {
+          const pf = placedMap[f.name];
+          const comma = idx < fields.length - 1 ? ',' : '';
+          const nullStr = f.nullable ? '' : ' NOT NULL';
+          const meta = pf
+            ? ` -- offset: ${String(pf.offset).padStart(2, ' ')}B | size: ${String(pf.totalBytes).padStart(2, ' ')}B | typalign: ${pf.align}B`
+            : '';
+          lines.push(`    ${f.name} ${f.rawType}${nullStr}${comma}${meta}`);
+        });
+        lines.push(');');
+      }
+      return lines.join('\n');
+    }
+
+    // =========================================================================
+    // UI RENDERING & INTERACTION CONTROLLERS
+    // =========================================================================
+
+    function formatOffset(num) {
+      if (state.hexRuler) {
+        return '0x' + num.toString(16).toUpperCase().padStart(2, '0');
+      }
+      return String(num).padStart(2, '0') + 'B';
+    }
+
+    function showToast(msg, isAlert = false) {
+      const el = document.getElementById('statusToast');
+      el.textContent = msg;
+      el.style.color = isAlert ? 'var(--accent-vermilion)' : 'var(--accent-phosphor)';
+    }
+
+    function populateNewFieldTypeDropdown(lang) {
+      const sel = document.getElementById('selectNewFieldType');
+      let catalog = C_TYPES;
+      if (lang === 'go') catalog = GO_TYPES;
+      else if (lang === 'rust') catalog = RUST_TYPES;
+      else if (lang === 'sql') catalog = SQL_TYPES;
+
+      sel.innerHTML = '';
+      Object.entries(catalog).forEach(([tName, [sz, al]]) => {
+        const opt = document.createElement('option');
+        opt.value = tName;
+        opt.textContent = `${tName} (${sz}B, align ${al}B)`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function buildByteMapCells(report, sideKey) {
+      const bytes = [];
+      for (let b = 0; b < report.headerBytes; b++) {
+        bytes[b] = {
+          offset: b,
+          kind: 'header',
+          label: 'HDR',
+          detail: `PostgreSQL HeapTupleHeaderData + null bitmap (byte ${b} of 24B header)`
+        };
+      }
+      report.placed.forEach(pf => {
+        for (let b = 0; b < pf.totalBytes; b++) {
+          const addr = pf.offset + b;
+          bytes[addr] = {
+            offset: addr,
+            kind: 'field',
+            field: pf,
+            byteInField: b,
+            label: b === 0 ? pf.name.slice(0, 4) : '·',
+            detail: `Field '${pf.name}' (${pf.rawType}) // Byte ${b + 1}/${pf.totalBytes} at offset ${formatOffset(addr)} (align ${pf.align}B, L1 Line #${Math.floor(addr / 64)})`
+          };
+        }
+      });
+      report.holes.forEach(h => {
+        for (let b = 0; b < h.size; b++) {
+          const addr = h.offset + b;
+          bytes[addr] = {
+            offset: addr,
+            kind: 'pad',
+            hole: h,
+            label: '////',
+            detail: `WASTED PADDING (${h.kind.toUpperCase()}) at ${formatOffset(addr)} // ${h.reason}`
+          };
+        }
+      });
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'space-y-1.5';
+
+      if (report.totalSize === 0) {
+        wrapper.innerHTML = '<div class="font-mono-tech text-xs p-3" style="color: var(--ink-muted);">EMPTY STRUCT (0 BYTES)</div>';
+        return wrapper;
+      }
+
+      const totalRows = Math.ceil(report.totalSize / 16);
+      for (let row = 0; row < totalRows; row++) {
+        const rowStart = row * 16;
+        if (rowStart % 64 === 0) {
+          const clIndex = rowStart / 64;
+          const clBanner = document.createElement('div');
+          clBanner.className = 'px-2 py-0.5 font-mono-tech text-[10px] font-bold flex items-center justify-between';
+          clBanner.style.background = 'var(--ink-primary)';
+          clBanner.style.color = 'var(--bg-paper)';
+          clBanner.innerHTML = `<span>L1 CACHE LINE #${clIndex} (${formatOffset(rowStart)} .. ${formatOffset(rowStart + 63)})</span><span>64-BYTE HARDWARE BOUNDARY</span>`;
+          wrapper.appendChild(clBanner);
+        }
+
+        const rowEl = document.createElement('div');
+        rowEl.className = 'flex items-center gap-1';
+
+        const addrLabel = document.createElement('div');
+        addrLabel.className = 'font-mono-tech text-[10px] w-11 shrink-0 text-right pr-1';
+        addrLabel.style.color = 'var(--ink-secondary)';
+        addrLabel.textContent = formatOffset(rowStart);
+        rowEl.appendChild(addrLabel);
+
+        const cellsGrid = document.createElement('div');
+        cellsGrid.className = 'grid grid-cols-16 flex-1 gap-0.5';
+        cellsGrid.style.gridTemplateColumns = 'repeat(16, minmax(0, 1fr))';
+
+        for (let col = 0; col < 16; col++) {
+          const byteAddr = rowStart + col;
+          const cell = document.createElement('div');
+          cell.className = 'byte-cell';
+
+          if (byteAddr >= report.totalSize) {
+            cell.style.opacity = '0.18';
+            cell.textContent = '';
+          } else {
+            const info = bytes[byteAddr];
+            if (info && info.kind === 'pad') {
+              cell.classList.add('pad-cell-hatch');
+              cell.textContent = '//';
+            } else if (info && info.kind === 'header') {
+              cell.classList.add('header-cell-hatch');
+              cell.textContent = byteAddr === 0 ? 'HD' : '·';
+            } else if (info && info.kind === 'field') {
+              const pal = FIELD_PALETTE[info.field.colorIdx];
+              cell.style.backgroundColor = pal.bg;
+              cell.style.borderColor = info.field.isHot ? 'var(--accent-vermilion)' : pal.border;
+              cell.style.color = info.field.isHot ? 'var(--accent-vermilion)' : pal.text;
+              if (info.byteInField === 0) {
+                cell.style.fontWeight = '700';
+              }
+              cell.textContent = info.label;
+            }
+
+            if (state.selectedByteIndex === byteAddr && state.selectedMatrixSide === sideKey) {
+              cell.classList.add('byte-selected');
+            }
+
+            cell.addEventListener('mouseenter', () => {
+              if (state.selectedByteIndex === null) {
+                updateByteInspector(info, sideKey);
+              }
+            });
+            cell.addEventListener('click', () => {
+              if (state.selectedByteIndex === byteAddr && state.selectedMatrixSide === sideKey) {
+                state.selectedByteIndex = null;
+              } else {
+                state.selectedByteIndex = byteAddr;
+                state.selectedMatrixSide = sideKey;
+              }
+              updateByteInspector(info, sideKey);
+              renderAll(false);
+            });
+          }
+          cellsGrid.appendChild(cell);
+        }
+
+        rowEl.appendChild(cellsGrid);
+        wrapper.appendChild(rowEl);
+      }
+      return wrapper;
+    }
+
+    function updateByteInspector(info, sideKey) {
+      if (!info) return;
+      const mainEl = document.getElementById('byteInspectorMain');
+      const metaEl = document.getElementById('byteInspectorMeta');
+      const sideLabel = sideKey === 'current' ? 'CURRENT MAP' : 'PACKED MAP';
+      const lockBadge = state.selectedByteIndex !== null ? '[LOCKED — CLICK TO UNLOCK]' : '[HOVER PREVIEW]';
+      mainEl.innerHTML = `<span class="font-bold">[${sideLabel}]</span> ${info.detail}`;
+      metaEl.textContent = lockBadge;
+    }
+
+    function renderAll(syncTextarea = false) {
+      const lang = state.resolvedLang;
+      const origReport = computeLayout(state.structName, lang, state.fields);
+      const optFields = optimizeFields(state.fields, lang);
+      let optReport = computeLayout(state.structName, lang, optFields);
+      let finalOptFields = optFields;
+      if (optReport.totalSize > origReport.totalSize) {
+        optReport = origReport;
+        finalOptFields = [...state.fields];
+      }
+
+      if (syncTextarea) {
+        const editor = document.getElementById('sourceEditor');
+        editor.value = generateSourceFromFields(state.structName, lang, state.fields, null, false);
+      }
+
+      // Update Top Badges & Header
+      const langLabels = {
+        c: 'C11 LP64 ABI',
+        go: 'GO 1.22 gc ABI',
+        rust: 'RUST #[repr(C)]',
+        sql: 'POSTGRESQL HEAPTUPLE'
+      };
+      document.getElementById('badgeLang').textContent = langLabels[lang] || 'C11 ABI';
+      document.getElementById('labelStructName').textContent =
+        lang === 'sql' ? `TABLE ${state.structName}` : `struct ${state.structName}`;
+
+      // Update 6 Top Metrics
+      const savedBytes = Math.max(0, origReport.totalSize - optReport.totalSize);
+      const savedPct = origReport.totalSize > 0 ? ((savedBytes / origReport.totalSize) * 100) : 0;
+
+      document.getElementById('metricCurrSize').textContent = `${origReport.totalSize} B`;
+      document.getElementById('metricCurrAlign').textContent = `align(${origReport.structAlign}B)`;
+      document.getElementById('metricCurrBreakdown').textContent =
+        lang === 'sql'
+          ? `24B hdr + ${origReport.payloadBytes}B data + ${origReport.paddingBytes}B pad`
+          : `${origReport.payloadBytes}B payload + ${origReport.paddingBytes}B pad`;
+
+      document.getElementById('metricPadBytes').textContent = `${origReport.paddingBytes} B`;
+      document.getElementById('metricPadHoles').textContent = `${origReport.holes.length} hole(s)`;
+      document.getElementById('metricEfficiency').textContent = `${origReport.efficiencyPct.toFixed(1)}% packing density`;
+
+      document.getElementById('metricOptSize').textContent = `${optReport.totalSize} B`;
+      document.getElementById('metricSavedPct').textContent = savedBytes > 0 ? `-${savedPct.toFixed(1)}%` : 'OPTIMAL';
+      document.getElementById('metricOptBreakdown').textContent =
+        savedBytes > 0 ? `Saves ${savedBytes} B per instance` : 'Zero avoidable padding';
+
+      const straddleCount = origReport.placed.filter(p => p.straddles).length;
+      document.getElementById('metricCacheLines').textContent = `${origReport.cacheLinesSpanned} → ${optReport.cacheLinesSpanned}`;
+      document.getElementById('metricStraddleCount').textContent = `${straddleCount} split(s)`;
+
+      const hazCount = origReport.hazards.length;
+      const hazEl = document.getElementById('metricHazards');
+      hazEl.textContent = hazCount === 0 ? '0 HAZARDS' : `${hazCount} HAZARD${hazCount > 1 ? 'S' : ''}`;
+      hazEl.style.color = hazCount === 0 ? 'var(--accent-phosphor)' : 'var(--accent-vermilion)';
+      document.getElementById('metricHazardSub').textContent =
+        hazCount === 0 ? 'No hot atomic contention' : 'Hot atomics share 64B line';
+
+      const fleetSavedBytes = savedBytes * state.instances;
+      document.getElementById('metricFleetRam').textContent = formatBytes(fleetSavedBytes);
+      document.getElementById('metricFleetInstances').textContent = `@ ${state.instances.toLocaleString()} instances`;
+
+      // Render Field Table
+      const tbody = document.getElementById('fieldTableBody');
+      tbody.innerHTML = '';
+      origReport.placed.forEach((pf, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-panel transition-colors';
+        const pal = FIELD_PALETTE[pf.colorIdx];
+        const padCellStyle = pf.padBefore > 0 ? 'color: var(--accent-vermilion); font-weight: 700;' : 'color: var(--ink-muted);';
+        tr.innerHTML = `
+          <td class="py-1.5 px-2 font-bold" style="border-left: 4px solid ${pal.border};">${String(idx + 1).padStart(2, '0')}</td>
+          <td class="py-1.5 px-2 font-bold">
+            ${pf.name}
+            ${pf.straddles ? '<span class="straddle-badge ml-1">SPLIT</span>' : ''}
+            ${pf.isZero ? '<span class="straddle-badge ml-1">0B GUARD</span>' : ''}
+          </td>
+          <td class="py-1.5 px-2" style="color: var(--ink-secondary);">${pf.rawType}</td>
+          <td class="py-1.5 px-2 text-right font-bold">${formatOffset(pf.offset)}</td>
+          <td class="py-1.5 px-2 text-right">${pf.totalBytes}B</td>
+          <td class="py-1.5 px-2 text-right">${pf.align}B</td>
+          <td class="py-1.5 px-2 text-right" style="${padCellStyle}">${pf.padBefore > 0 ? '+' + pf.padBefore + 'B' : '0B'}</td>
+          <td class="py-1.5 px-2 text-center">
+            <div class="inline-flex items-center gap-1">
+              <button type="button" class="hw-btn !px-1.5 !py-0.5" data-action="up" data-idx="${idx}" title="Move field up">↑</button>
+              <button type="button" class="hw-btn !px-1.5 !py-0.5" data-action="down" data-idx="${idx}" title="Move field down">↓</button>
+              <button type="button" class="hw-btn !px-1.5 !py-0.5 ${pf.isHot ? 'hw-btn-vermilion' : ''}" data-action="hot" data-idx="${idx}" title="Toggle @hot / atomic false-sharing contention flag">HOT</button>
+              <button type="button" class="hw-btn !px-1.5 !py-0.5" data-action="del" data-idx="${idx}" title="Delete field">×</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Render Matrices
+      document.getElementById('labelMatrixCurrBytes').textContent = `${origReport.totalSize} B`;
+      document.getElementById('labelMatrixCurrWaste').textContent = `${origReport.paddingBytes} B WASTED PAD`;
+      document.getElementById('labelMatrixOptBytes').textContent = `${optReport.totalSize} B`;
+      document.getElementById('labelMatrixOptWaste').textContent = `${optReport.paddingBytes} B WASTED PAD`;
+
+      const currContainer = document.getElementById('matrixCurrentContainer');
+      currContainer.innerHTML = '';
+      currContainer.appendChild(buildByteMapCells(origReport, 'current'));
+
+      const optContainer = document.getElementById('matrixOptimizedContainer');
+      optContainer.innerHTML = '';
+      optContainer.appendChild(buildByteMapCells(optReport, 'optimized'));
+
+      // Diagnostics List
+      const diagList = document.getElementById('diagnosticList');
+      diagList.innerHTML = '';
+      if (origReport.holes.length === 0 && origReport.notes.length === 0) {
+        diagList.innerHTML = '<li style="color: var(--accent-phosphor);">✓ ZERO PADDING HOLES DETECTED // Struct is tightly packed to ABI alignment boundaries.</li>';
+      } else {
+        origReport.holes.forEach(h => {
+          const li = document.createElement('li');
+          li.innerHTML = `<span style="color: var(--accent-vermilion); font-weight: 700;">[PAD +${h.size}B @ ${formatOffset(h.offset)}]</span> ${h.reason}`;
+          diagList.appendChild(li);
+        });
+        origReport.notes.forEach(note => {
+          const li = document.createElement('li');
+          li.innerHTML = `<span style="color: var(--accent-amber); font-weight: 700;">[ABI NOTE]</span> ${note}`;
+          diagList.appendChild(li);
+        });
+      }
+
+      // Tab 2: Refactored Code & Shift Table
+      const refactoredCode = generateSourceFromFields(state.structName, lang, finalOptFields, optReport, true);
+      document.getElementById('preRefactoredCode').textContent = refactoredCode;
+
+      const diffBody = document.getElementById('diffOffsetTableBody');
+      diffBody.innerHTML = '';
+      const origOffsetMap = {};
+      origReport.placed.forEach(p => { origOffsetMap[p.name] = p; });
+      optReport.placed.forEach(p => {
+        const oldP = origOffsetMap[p.name];
+        const tr = document.createElement('tr');
+        const oldOff = oldP ? formatOffset(oldP.offset) : '-';
+        const newOff = formatOffset(p.offset);
+        tr.innerHTML = `
+          <td class="py-1 px-2 font-bold">${p.name}</td>
+          <td class="py-1 px-2" style="color: var(--ink-secondary);">${p.totalBytes}B / align(${p.align}B)</td>
+          <td class="py-1 px-2 text-right">${oldOff}</td>
+          <td class="py-1 px-2 text-right font-bold" style="color: var(--accent-phosphor);">${newOff}</td>
+          <td class="py-1 px-2 text-right">L1 #${p.cacheLineStart}</td>
+        `;
+        diffBody.appendChild(tr);
+      });
+
+      // Tab 3: Fleet Scale & False Sharing
+      const currFleetTotal = origReport.totalSize * state.instances;
+      const optFleetTotal = optReport.totalSize * state.instances;
+      const savedPages = Math.floor(fleetSavedBytes / 8192);
+      document.getElementById('scaleCurrTotal').textContent = formatBytes(currFleetTotal);
+      document.getElementById('scaleCurrSub').textContent = `${state.instances.toLocaleString()} × ${origReport.totalSize} B`;
+      document.getElementById('scaleOptTotal').textContent = formatBytes(optFleetTotal);
+      document.getElementById('scaleOptSub').textContent = `${state.instances.toLocaleString()} × ${optReport.totalSize} B`;
+      document.getElementById('scaleSavedTotal').textContent = formatBytes(fleetSavedBytes);
+      document.getElementById('scalePagesSub').textContent = `${savedPages.toLocaleString()} Postgres 8KB heap pages / ${Math.floor(fleetSavedBytes / 64).toLocaleString()} L1 lines saved`;
+
+      const fsContainer = document.getElementById('falseSharingContainer');
+      fsContainer.innerHTML = '';
+      if (origReport.hazards.length === 0) {
+        fsContainer.innerHTML = `
+          <div class="p-3 subtle-border bg-recessed" style="color: var(--accent-phosphor);">
+            <strong>✓ NO FALSE-SHARING CONTENTION DETECTED</strong><br/>
+            No two @hot / atomic fields cohabit the same 64-byte L1 cache line in the current layout.
+          </div>
+        `;
+      } else {
+        origReport.hazards.forEach(h => {
+          const card = document.createElement('div');
+          card.className = 'p-3 subtle-border bg-recessed';
+          card.style.borderLeft = '4px solid var(--accent-vermilion)';
+          card.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-bold" style="color: var(--accent-vermilion);">
+                [CRITICAL MESI CONTENTION] L1 CACHE LINE #${h.cacheLine}
+              </span>
+              <span>BYTE DISTANCE: ${h.distance} B APART</span>
+            </div>
+            <div class="mt-1">
+              Hot fields <strong>'${h.fieldA}'</strong> (@ ${formatOffset(h.offsetA)}) and <strong>'${h.fieldB}'</strong> (@ ${formatOffset(h.offsetB)}) reside inside the same 64-byte L1D line (${formatOffset(h.cacheLine * 64)}..${formatOffset(h.cacheLine * 64 + 63)}). Concurrent cores mutating these fields will invalidate each other's L1 cache line on every write!
+            </div>
+          `;
+          fsContainer.appendChild(card);
+        });
+      }
+    }
+
+    function loadPreset(presetKey) {
+      const p = PRESETS[presetKey];
+      if (!p) return;
+      state.activePreset = presetKey;
+      state.selectedByteIndex = null;
+      document.getElementById('textPresetDesc').textContent = p.description;
+      document.getElementById('sourceEditor').value = p.code;
+      const parsed = parseSource(p.code, state.langOverride);
+      state.resolvedLang = parsed.lang;
+      state.structName = parsed.structName;
+      state.fields = parsed.fields;
+      populateNewFieldTypeDropdown(state.resolvedLang);
+
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('hw-btn-active', btn.dataset.preset === presetKey);
+      });
+      renderAll(false);
+      showToast(`LOADED BENCHMARK // ${p.title.toUpperCase()}`);
+    }
+
+    // =========================================================================
+    // EVENT LISTENERS & KEYBOARD TELEMETRY
+    // =========================================================================
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Preset buttons
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => loadPreset(btn.dataset.preset));
+      });
+
+      // Language selector
+      document.getElementById('selectLang').addEventListener('change', (e) => {
+        state.langOverride = e.target.value;
+        const parsed = parseSource(document.getElementById('sourceEditor').value, state.langOverride);
+        state.resolvedLang = parsed.lang;
+        state.structName = parsed.structName;
+        state.fields = parsed.fields;
+        populateNewFieldTypeDropdown(state.resolvedLang);
+        renderAll(false);
+        showToast(`TARGET ABI SET TO ${state.resolvedLang.toUpperCase()}`);
+      });
+
+      // Live Source Code Editor
+      document.getElementById('sourceEditor').addEventListener('input', (e) => {
+        const parsed = parseSource(e.target.value, state.langOverride);
+        state.resolvedLang = parsed.lang;
+        state.structName = parsed.structName;
+        state.fields = parsed.fields;
+        populateNewFieldTypeDropdown(state.resolvedLang);
+        renderAll(false);
+      });
+
+      // Optimal Packing Button
+      document.getElementById('btnPackNow').addEventListener('click', () => {
+        state.fields = optimizeFields(state.fields, state.resolvedLang);
+        state.selectedByteIndex = null;
+        renderAll(true);
+        showToast('APPLIED OPTIMAL FIELD PERMUTATION // ALIGNMENT HOLES ELIMINATED');
+      });
+
+      // Reset Preset Button
+      document.getElementById('btnResetPreset').addEventListener('click', () => {
+        loadPreset(state.activePreset);
+      });
+
+      // Reverse Order & Adversarial Interleave
+      document.getElementById('btnReverseOrder').addEventListener('click', () => {
+        state.fields.reverse();
+        renderAll(true);
+        showToast('INVERTED FIELD DECLARATION SEQUENCE');
+      });
+
+      document.getElementById('btnSortWorst').addEventListener('click', () => {
+        const sorted = [...state.fields].sort((a, b) => a.align - b.align);
+        const interleaved = [];
+        let left = 0, right = sorted.length - 1;
+        while (left <= right) {
+          if (left === right) {
+            interleaved.push(sorted[left++]);
+          } else {
+            interleaved.push(sorted[left++], sorted[right--]);
+          }
+        }
+        state.fields = interleaved;
+        renderAll(true);
+        showToast('APPLIED ADVERSARIAL 1B/8B INTERLEAVING (WORST-CASE PADDING)');
+      });
+
+      // Field Table Action Delegation (Up / Down / Hot / Delete)
+      document.getElementById('fieldTableBody').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const idx = parseInt(btn.dataset.idx, 10);
+        if (isNaN(idx) || idx < 0 || idx >= state.fields.length) return;
+
+        if (action === 'up' && idx > 0) {
+          const tmp = state.fields[idx - 1];
+          state.fields[idx - 1] = state.fields[idx];
+          state.fields[idx] = tmp;
+          renderAll(true);
+        } else if (action === 'down' && idx < state.fields.length - 1) {
+          const tmp = state.fields[idx + 1];
+          state.fields[idx + 1] = state.fields[idx];
+          state.fields[idx] = tmp;
+          renderAll(true);
+        } else if (action === 'hot') {
+          state.fields[idx].isHot = !state.fields[idx].isHot;
+          renderAll(true);
+          showToast(`TOGGLED @HOT CONTENTION FLAG ON '${state.fields[idx].name}'`);
+        } else if (action === 'del') {
+          const removed = state.fields.splice(idx, 1)[0];
+          renderAll(true);
+          showToast(`REMOVED FIELD '${removed.name}'`);
+        }
+      });
+
+      // Append New Field Form
+      document.getElementById('formAddField').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('inputNewFieldName');
+        const rawName = nameInput.value.trim().replace(/\W+/g, '_') || `field_${state.fields.length + 1}`;
+        const rawType = document.getElementById('selectNewFieldType').value;
+        const isHot = document.getElementById('checkNewFieldHot').checked;
+
+        let catalog = C_TYPES;
+        if (state.resolvedLang === 'go') catalog = GO_TYPES;
+        else if (state.resolvedLang === 'rust') catalog = RUST_TYPES;
+        else if (state.resolvedLang === 'sql') catalog = SQL_TYPES;
+
+        const [size, align] = catalog[rawType] || [8, 8];
+        state.fields.push({
+          name: rawName,
+          rawType,
+          size,
+          align,
+          count: 1,
+          isHot,
+          isZero: size === 0,
+          nullable: false,
+          comment: isHot ? '@hot' : ''
+        });
+        nameInput.value = '';
+        document.getElementById('checkNewFieldHot').checked = false;
+        renderAll(true);
+        showToast(`INSERTED FIELD '${rawName}' (${rawType})`);
+      });
+
+      // View Mode Tabs
+      document.querySelectorAll('.view-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeTab = btn.dataset.tab;
+          document.querySelectorAll('.view-tab-btn').forEach(b => {
+            b.classList.toggle('hw-btn-active', b.dataset.tab === state.activeTab);
+          });
+          document.getElementById('tabPanelMatrix').classList.toggle('hidden', state.activeTab !== 'matrix');
+          document.getElementById('tabPanelMatrix').classList.toggle('flex', state.activeTab === 'matrix');
+          document.getElementById('tabPanelCompare').classList.toggle('hidden', state.activeTab !== 'compare');
+          document.getElementById('tabPanelCompare').classList.toggle('flex', state.activeTab === 'compare');
+          document.getElementById('tabPanelContention').classList.toggle('hidden', state.activeTab !== 'contention');
+          document.getElementById('tabPanelContention').classList.toggle('flex', state.activeTab === 'contention');
+        });
+      });
+
+      // Hex / Dec Offset Toggle
+      document.getElementById('btnToggleHex').addEventListener('click', (e) => {
+        state.hexRuler = !state.hexRuler;
+        e.currentTarget.textContent = state.hexRuler ? 'OFFSET: HEX (0x)' : 'OFFSET: DEC (B)';
+        renderAll(false);
+      });
+
+      // Copy Refactored Code & Load into Editor
+      document.getElementById('btnCopyRefactored').addEventListener('click', () => {
+        const text = document.getElementById('preRefactoredCode').textContent;
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('COPIED REFACTORED DEFINITION TO CLIPBOARD');
+        } catch (err) {
+          showToast('CLIPBOARD COPY READY', true);
+        }
+        document.body.removeChild(ta);
+      });
+
+      document.getElementById('btnApplyToEditor').addEventListener('click', () => {
+        state.fields = optimizeFields(state.fields, state.resolvedLang);
+        renderAll(true);
+        showToast('LOADED PACKED DEFINITION INTO ACTIVE EDITOR');
+      });
+
+      // Fleet Scale Slider & Buttons
+      document.getElementById('sliderInstances').addEventListener('input', (e) => {
+        const exp = parseFloat(e.target.value);
+        state.instances = Math.round(Math.pow(10, exp));
+        document.querySelectorAll('.scale-preset-btn').forEach(b => b.classList.remove('hw-btn-active'));
+        renderAll(false);
+      });
+
+      document.querySelectorAll('.scale-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.instances = parseInt(btn.dataset.scale, 10);
+          document.getElementById('sliderInstances').value = String(Math.log10(state.instances));
+          document.querySelectorAll('.scale-preset-btn').forEach(b => {
+            b.classList.toggle('hw-btn-active', b === btn);
+          });
+          renderAll(false);
+        });
+      });
+
+      // Inject 64B Cache-Line Guard Pad Between Hot Fields
+      document.getElementById('btnInjectCachePad').addEventListener('click', () => {
+        const origReport = computeLayout(state.structName, state.resolvedLang, state.fields);
+        if (origReport.hazards.length === 0) {
+          showToast('NO FALSE-SHARING HAZARDS PRESENT TO PAD');
+          return;
+        }
+        const haz = origReport.hazards[0];
+        const idxB = state.fields.findIndex(f => f.name === haz.fieldB);
+        if (idxB !== -1) {
+          const padBytes = 56;
+          let padField;
+          if (state.resolvedLang === 'c') {
+            padField = { name: `_cl_pad_${idxB}`, rawType: `uint8_t[${padBytes}]`, size: 1, align: 1, count: padBytes, isHot: false, isZero: false, nullable: false, comment: '64B cache-line guard' };
+          } else if (state.resolvedLang === 'go') {
+            padField = { name: `_clPad${idxB}`, rawType: `[${padBytes}]byte`, size: 1, align: 1, count: padBytes, isHot: false, isZero: false, nullable: false, comment: '64B cache-line guard' };
+          } else if (state.resolvedLang === 'rust') {
+            padField = { name: `_cl_pad_${idxB}`, rawType: `[u8; ${padBytes}]`, size: 1, align: 1, count: padBytes, isHot: false, isZero: false, nullable: false, comment: '64B cache-line guard' };
+          } else {
+            padField = { name: `cl_pad_${idxB}`, rawType: 'UUID', size: 16, align: 1, count: 1, isHot: false, isZero: false, nullable: false, comment: 'guard' };
+          }
+          state.fields.splice(idxB, 0, padField);
+          renderAll(true);
+          showToast(`INJECTED ${padBytes}B CACHE-LINE ISOLATION PAD BEFORE '${haz.fieldB}'`);
+        }
+      });
+
+      // Theme Toggle (Paper Spec vs Oscilloscope Dark Chassis)
+      document.getElementById('btnToggleTheme').addEventListener('click', () => {
+        state.darkTheme = !state.darkTheme;
+        document.body.classList.toggle('chassis-dark', state.darkTheme);
+        document.getElementById('themeLabel').textContent = state.darkTheme ? 'OSCILLOSCOPE DARK' : 'PAPER SPEC';
+        showToast(state.darkTheme ? 'CHASSIS MODE // OSCILLOSCOPE DARK' : 'CHASSIS MODE // ARCHIVAL PAPER SPEC');
+      });
+
+      // Global Keyboard Shortcuts (when not focused inside an input/textarea)
+      window.addEventListener('keydown', (e) => {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag === 'textarea' || tag === 'input' || tag === 'select' || e.metaKey || e.ctrlKey || e.altKey) return;
+        const key = e.key.toLowerCase();
+        if (key === 'o') {
+          e.preventDefault();
+          document.getElementById('btnPackNow').click();
+        } else if (key === 'r') {
+          e.preventDefault();
+          document.getElementById('btnResetPreset').click();
+        } else if (key === 'c') {
+          e.preventDefault();
+          document.getElementById('btnCopyRefactored').click();
+        } else if (key === 't') {
+          e.preventDefault();
+          document.getElementById('btnToggleTheme').click();
+        }
+      });
+
+      // Initial Load
+      loadPreset('c_orderbook');
+    });
+  </script>
+</body>
+</html>

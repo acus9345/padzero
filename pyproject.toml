@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "padzero"
+version = "0.1.0"
+description = "Cross-language struct & PostgreSQL tuple alignment, 64B cache-line straddling, and false-sharing optimizer"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    {name = "padzero contributors"}
+]
+keywords = ["memory-layout", "cache-line", "false-sharing", "struct-packing", "pahole", "postgres", "golang", "rust", "c11"]
+
+[project.urls]
+Homepage = "https://github.com/acus9345/padzero"
+Repository = "https://github.com/acus9345/padzero"
+Issues = "https://github.com/acus9345/padzero/issues"
+"Bug Tracker" = "https://github.com/acus9345/padzero/issues"
+
+[project.scripts]
+padzero = "padzero.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["padzero*"]
