@@ -150,31 +150,54 @@ C_TYPES: dict[str, tuple[int, int]] = {
     "int8_t": (1, 1),
     "uint8_t": (1, 1),
     "atomic_bool": (1, 1),
+    "atomic_flag": (1, 1),
+    "atomic_int8_t": (1, 1),
+    "atomic_uint8_t": (1, 1),
     "short": (2, 2),
+    "short int": (2, 2),
     "unsigned short": (2, 2),
+    "unsigned short int": (2, 2),
     "int16_t": (2, 2),
     "uint16_t": (2, 2),
+    "atomic_short": (2, 2),
+    "atomic_ushort": (2, 2),
+    "atomic_int16_t": (2, 2),
+    "atomic_uint16_t": (2, 2),
     "int": (4, 4),
+    "signed": (4, 4),
+    "unsigned": (4, 4),
     "unsigned int": (4, 4),
     "int32_t": (4, 4),
     "uint32_t": (4, 4),
     "float": (4, 4),
     "atomic_int": (4, 4),
     "atomic_uint": (4, 4),
+    "atomic_int32_t": (4, 4),
+    "atomic_uint32_t": (4, 4),
     "long": (8, 8),
+    "long int": (8, 8),
     "unsigned long": (8, 8),
+    "unsigned long int": (8, 8),
     "long long": (8, 8),
+    "long long int": (8, 8),
     "unsigned long long": (8, 8),
+    "unsigned long long int": (8, 8),
     "int64_t": (8, 8),
     "uint64_t": (8, 8),
     "size_t": (8, 8),
     "ssize_t": (8, 8),
+    "intptr_t": (8, 8),
     "uintptr_t": (8, 8),
     "ptrdiff_t": (8, 8),
     "double": (8, 8),
+    "atomic_long": (8, 8),
+    "atomic_ulong": (8, 8),
     "atomic_llong": (8, 8),
     "atomic_ullong": (8, 8),
     "atomic_size_t": (8, 8),
+    "atomic_int64_t": (8, 8),
+    "atomic_uint64_t": (8, 8),
+    "atomic_uintptr_t": (8, 8),
     "pthread_mutex_t": (40, 8),
     "__int128": (16, 16),
     "unsigned __int128": (16, 16),
@@ -279,6 +302,9 @@ SQL_TYPES: dict[str, tuple[int, int]] = {
     "timestamp with time zone": (8, 8),
     "timestamp without time zone": (8, 8),
     "time": (8, 8),
+    "time without time zone": (8, 8),
+    "timetz": (12, 8),
+    "time with time zone": (12, 8),
     "money": (8, 8),
     "uuid": (16, 1),  # Postgres uuid has typalign = 'c' (1-byte align, 16B len!)
     "interval": (16, 8),
@@ -312,6 +338,183 @@ def _extract_brace_body(source: str) -> str:
     return source
 
 
+def _extract_balanced_block(
+    source: str,
+    open_idx: int,
+    open_ch: str = "{",
+    close_ch: str = "}",
+    line_comment: str = "//",
+) -> str:
+    """Extracts the substring inside balanced delimiters starting at open_idx."""
+    if open_idx < 0 or open_idx >= len(source) or source[open_idx] != open_ch:
+        return _extract_brace_body(source) if open_ch == "{" else source
+    depth = 0
+    i = open_idx
+    n = len(source)
+    in_single = False
+    in_double = False
+    in_backtick = False
+    in_line_comment = False
+    in_block_comment = False
+    lc_len = len(line_comment)
+
+    while i < n:
+        ch = source[i]
+        if in_line_comment:
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        if in_block_comment:
+            if ch == "*" and i + 1 < n and source[i + 1] == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if in_single:
+            if ch == "\\" and line_comment != "--" and i + 1 < n:
+                i += 2
+                continue
+            if ch == "'":
+                in_single = False
+            i += 1
+            continue
+        if in_double:
+            if ch == "\\" and line_comment != "--" and i + 1 < n:
+                i += 2
+                continue
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        if in_backtick:
+            if ch == "`":
+                in_backtick = False
+            i += 1
+            continue
+
+        if source.startswith(line_comment, i):
+            in_line_comment = True
+            i += lc_len
+            continue
+        if ch == "/" and i + 1 < n and source[i + 1] == "*":
+            in_block_comment = True
+            i += 2
+            continue
+        if ch == "'":
+            in_single = True
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            i += 1
+            continue
+        if ch == "`" and line_comment != "--":
+            in_backtick = True
+            i += 1
+            continue
+
+        if ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return source[open_idx + 1 : i]
+        i += 1
+
+    return source[open_idx + 1 :]
+
+
+def _split_c_like_lines(body: str) -> list[tuple[str, str]]:
+    """Splits C/Rust body lines while stripping block comments and preserving inline comment text."""
+    results: list[tuple[str, str]] = []
+    in_block_comment = False
+
+    for raw_line in body.splitlines():
+        line = raw_line
+        comment_parts: list[str] = []
+        code_parts: list[str] = []
+        i = 0
+        n = len(line)
+        while i < n:
+            if in_block_comment:
+                end = line.find("*/", i)
+                if end == -1:
+                    i = n
+                    break
+                in_block_comment = False
+                i = end + 2
+                continue
+            slash_idx = line.find("//", i)
+            block_idx = line.find("/*", i)
+            if slash_idx != -1 and (block_idx == -1 or slash_idx < block_idx):
+                code_parts.append(line[i:slash_idx])
+                comment_parts.append(line[slash_idx + 2 :].strip())
+                break
+            if block_idx != -1:
+                code_parts.append(line[i:block_idx])
+                end = line.find("*/", block_idx + 2)
+                if end == -1:
+                    in_block_comment = True
+                    break
+                inner = line[block_idx + 2 : end].strip()
+                if inner:
+                    comment_parts.append(inner)
+                i = end + 2
+                continue
+            code_parts.append(line[i:])
+            break
+
+        code_line = "".join(code_parts).strip()
+        comment = " ".join(p for p in comment_parts if p).strip()
+        if code_line:
+            results.append((code_line, comment))
+    return results
+
+
+def _split_go_line(line: str) -> tuple[str, str]:
+    """Extracts declaration and comment from a Go struct line, ignoring // inside struct tags."""
+    out: list[str] = []
+    comment = ""
+    i = 0
+    n = len(line)
+    in_double = False
+    in_backtick = False
+    while i < n:
+        ch = line[i]
+        if in_backtick:
+            if ch == "`":
+                in_backtick = False
+            i += 1
+            continue
+        if in_double:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(line[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        if ch == "`":
+            in_backtick = True
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n and line[i + 1] == "/":
+            comment = line[i + 2 :].strip()
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out).strip(), comment
+
+
 def detect_language(source: str) -> str:
     """Automatically detects whether source is C, Go, Rust, or PostgreSQL DDL."""
     s = source.strip()
@@ -319,8 +522,9 @@ def detect_language(source: str) -> str:
         return "sql"
     if re.search(r"\btype\s+\w+\s+struct\b", s):
         return "go"
-    if re.search(r"\b(?:pub\s+)?struct\s+\w+\s*\{", s) and re.search(
-        r"\b\w+\s*:\s*[\w<\[\]&]", s
+    if re.search(r"#\[repr\(", s) or (
+        re.search(r"\b(?:pub(?:\([^)]*\))?\s+)?struct\s+\w+\s*\{", s)
+        and re.search(r"\b\w+\s*:\s*[\w<\[\]&*(]", s)
     ):
         return "rust"
     return "c"
@@ -348,37 +552,35 @@ def _is_hot_or_atomic(name: str, raw_type: str, comment: str) -> bool:
 
 
 def parse_c_struct(source: str) -> tuple[str, list[FieldSpec]]:
-    name_match = re.search(r"struct\s+(\w+)\s*\{", source)
+    open_match = re.search(r"\bstruct(?:\s+(\w+))?\s*\{", source)
     tds_match = re.search(r"\}\s*(\w+)\s*;", source)
     struct_name = (
-        name_match.group(1)
-        if name_match
+        open_match.group(1)
+        if (open_match and open_match.group(1))
         else (tds_match.group(1) if tds_match else "AnonymousStruct")
     )
-    body = _extract_brace_body(source)
+    body = (
+        _extract_balanced_block(source, open_match.end() - 1, "{", "}", "//")
+        if open_match
+        else _extract_brace_body(source)
+    )
     fields: list[FieldSpec] = []
 
-    for raw_line in body.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("//") or line.startswith("/*"):
-            continue
-        comment = ""
-        if "//" in line:
-            line, comment = line.split("//", 1)
-            line = line.strip()
-            comment = comment.strip()
-        line = re.sub(r"/\*.*?\*/", "", line).strip()
+    for line, comment in _split_c_like_lines(body):
         if not line.endswith(";"):
             continue
         decl = line[:-1].strip()
         if not decl:
             continue
 
-        arr_match = re.search(r"(\w+)\s*\[(\d+)\]\s*$", decl)
+        arr_match = re.search(r"(\w+)\s*((?:\[\d+\])+)\s*$", decl)
         count = 1
+        arr_dims = ""
         if arr_match:
             field_name = arr_match.group(1)
-            count = max(1, int(arr_match.group(2)))
+            arr_dims = arr_match.group(2)
+            dims = [int(d) for d in re.findall(r"\[(\d+)\]", arr_dims)]
+            count = math.prod(dims) if dims else 1
             type_part = decl[: arr_match.start()].strip()
         else:
             ptr_match = re.search(r"(\*+)\s*(\w+)\s*$", decl)
@@ -391,7 +593,8 @@ def parse_c_struct(source: str) -> tuple[str, list[FieldSpec]]:
                     continue
                 type_part, field_name = parts[0].strip(), parts[1].strip()
 
-        clean_type = re.sub(r"\b(volatile|const|restrict|_Atomic)\b", "", type_part).strip()
+        clean_type = re.sub(r"_Atomic\s*\(\s*([^)]+?)\s*\)", r"\1", type_part)
+        clean_type = re.sub(r"\b(volatile|const|restrict|_Atomic)\b", "", clean_type).strip()
         clean_type = " ".join(clean_type.split())
 
         if "*" in clean_type or "*" in type_part:
@@ -402,7 +605,7 @@ def parse_c_struct(source: str) -> tuple[str, list[FieldSpec]]:
             size, align = 4, 4
 
         hot = _is_hot_or_atomic(field_name, type_part, comment)
-        display_type = f"{type_part}[{count}]" if count > 1 else type_part
+        display_type = f"{type_part}{arr_dims}" if arr_dims else type_part
         fields.append(
             FieldSpec(
                 name=field_name,
@@ -411,6 +614,7 @@ def parse_c_struct(source: str) -> tuple[str, list[FieldSpec]]:
                 align=align,
                 count=count,
                 is_atomic_or_hot=hot,
+                is_zero_sized_marker=(size * count == 0),
                 comment=comment,
             )
         )
@@ -418,21 +622,20 @@ def parse_c_struct(source: str) -> tuple[str, list[FieldSpec]]:
 
 
 def parse_go_struct(source: str) -> tuple[str, list[FieldSpec]]:
-    name_match = re.search(r"type\s+(\w+)\s+struct\s*\{", source)
+    name_match = re.search(r"\btype\s+(\w+)\s+struct\s*\{", source)
     struct_name = name_match.group(1) if name_match else "GoStruct"
-    body = _extract_brace_body(source)
+    body = (
+        _extract_balanced_block(source, name_match.end() - 1, "{", "}", "//")
+        if name_match
+        else _extract_brace_body(source)
+    )
     fields: list[FieldSpec] = []
 
     for raw_line in body.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("//"):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("//"):
             continue
-        comment = ""
-        if "//" in line:
-            line, comment = line.split("//", 1)
-            line = line.strip()
-            comment = comment.strip()
-        line = re.sub(r"`[^`]*`", "", line).strip()
+        line, comment = _split_go_line(stripped)
         if not line:
             continue
         parts = line.split(None, 1)
@@ -444,7 +647,7 @@ def parse_go_struct(source: str) -> tuple[str, list[FieldSpec]]:
         arr_match = re.match(r"^\[(\d+)\](.+)$", type_part)
         base_type = type_part
         if arr_match:
-            count = max(1, int(arr_match.group(1)))
+            count = int(arr_match.group(1))
             base_type = arr_match.group(2).strip()
 
         is_zero = False
@@ -455,6 +658,8 @@ def parse_go_struct(source: str) -> tuple[str, list[FieldSpec]]:
             base_type.startswith("*")
             or base_type.startswith("map[")
             or base_type.startswith("chan ")
+            or base_type.startswith("<-chan ")
+            or base_type.startswith("chan<- ")
             or base_type.startswith("func(")
         ):
             size, align = 8, 8
@@ -466,6 +671,9 @@ def parse_go_struct(source: str) -> tuple[str, list[FieldSpec]]:
             size, align = GO_TYPES[base_type]
         else:
             size, align = 8, 8
+
+        if count == 0:
+            is_zero = True
 
         hot = _is_hot_or_atomic(field_name, type_part, comment)
         fields.append(
@@ -484,20 +692,20 @@ def parse_go_struct(source: str) -> tuple[str, list[FieldSpec]]:
 
 
 def parse_rust_struct(source: str) -> tuple[str, list[FieldSpec]]:
-    name_match = re.search(r"struct\s+(\w+)\s*\{", source)
+    name_match = re.search(
+        r"\b(?:pub(?:\([^)]*\))?\s+)?struct\s+(\w+)\s*\{", source
+    )
     struct_name = name_match.group(1) if name_match else "RustStruct"
-    body = _extract_brace_body(source)
+    body = (
+        _extract_balanced_block(source, name_match.end() - 1, "{", "}", "//")
+        if name_match
+        else _extract_brace_body(source)
+    )
     fields: list[FieldSpec] = []
 
-    for raw_line in body.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("//") or line.startswith("#["):
+    for line, comment in _split_c_like_lines(body):
+        if line.startswith("#["):
             continue
-        comment = ""
-        if "//" in line:
-            line, comment = line.split("//", 1)
-            line = line.strip()
-            comment = comment.strip()
         line = line.rstrip(",").strip()
         if ":" not in line:
             continue
@@ -510,12 +718,14 @@ def parse_rust_struct(source: str) -> tuple[str, list[FieldSpec]]:
         base_type = type_part
         if arr_match:
             base_type = arr_match.group(1).strip()
-            count = max(1, int(arr_match.group(2)))
+            count = int(arr_match.group(2))
 
         is_zero = False
         if base_type == "()" or base_type.startswith("PhantomData"):
             size, align = 0, 1
             is_zero = True
+        elif re.match(r"^&(?:'\w+\s+)?(?:mut\s+)?(?:str|\[|dyn\b)", base_type):
+            size, align = 16, 8
         elif (
             base_type.startswith("&")
             or base_type.startswith("*const")
@@ -530,6 +740,9 @@ def parse_rust_struct(source: str) -> tuple[str, list[FieldSpec]]:
             size, align = RUST_TYPES[base_type]
         else:
             size, align = 8, 8
+
+        if count == 0:
+            is_zero = True
 
         hot = _is_hot_or_atomic(field_name, type_part, comment)
         fields.append(
@@ -549,18 +762,23 @@ def parse_rust_struct(source: str) -> tuple[str, list[FieldSpec]]:
 
 def parse_sql_table(source: str) -> tuple[str, list[FieldSpec]]:
     name_match = re.search(
-        r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w.]+)\s*\(",
+        r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w.\"]+)\s*\(",
         source,
         re.IGNORECASE,
     )
-    table_name = name_match.group(1) if name_match else "postgres_table"
-    first_paren = source.find("(")
-    last_paren = source.rfind(")")
-    body = (
-        source[first_paren + 1 : last_paren]
-        if (first_paren != -1 and last_paren > first_paren)
-        else source
+    table_name = (
+        name_match.group(1).replace('"', "") if name_match else "postgres_table"
     )
+    if name_match:
+        body = _extract_balanced_block(source, name_match.end() - 1, "(", ")", "--")
+    else:
+        first_paren = source.find("(")
+        last_paren = source.rfind(")")
+        body = (
+            source[first_paren + 1 : last_paren]
+            if (first_paren != -1 and last_paren > first_paren)
+            else source
+        )
     fields: list[FieldSpec] = []
 
     for raw_line in body.splitlines():
@@ -594,13 +812,18 @@ def parse_sql_table(source: str) -> tuple[str, list[FieldSpec]]:
             flags=re.IGNORECASE,
         )[0].strip()
         type_lower = " ".join(type_clean.lower().split())
+        type_norm = re.sub(
+            r"\b(timestamp|timestamptz|time|timetz)\s*\(\d+\)",
+            r"\1",
+            type_lower,
+        )
 
-        char_match = re.match(r"^(?:character|char)\s*\((\d+)\)$", type_lower)
+        char_match = re.match(r"^(?:character|char)\s*\((\d+)\)$", type_norm)
         if char_match:
             n = int(char_match.group(1))
             size, align = n + 1, 4 if n > 1 else 1
-        elif type_lower in SQL_TYPES:
-            size, align = SQL_TYPES[type_lower]
+        elif type_norm in SQL_TYPES:
+            size, align = SQL_TYPES[type_norm]
         else:
             size, align = 8, 4
 
@@ -755,18 +978,17 @@ def compute_layout(
     efficiency = (payload_bytes / denom * 100.0) if denom > 0 else 100.0
 
     hazards: list[FalseSharingHazard] = []
-    hot_placed = [pf for pf in placed if pf.is_atomic_or_hot]
+    hot_placed = [pf for pf in placed if pf.is_atomic_or_hot and pf.size > 0]
     for i in range(len(hot_placed)):
         for j in range(i + 1, len(hot_placed)):
             a, b = hot_placed[i], hot_placed[j]
-            if (
-                a.cache_line_start == b.cache_line_start
-                or a.cache_line_end == b.cache_line_start
-            ):
+            overlap_start = max(a.cache_line_start, b.cache_line_start)
+            overlap_end = min(a.cache_line_end, b.cache_line_end)
+            if overlap_start <= overlap_end:
                 dist = max(0, b.offset - (a.offset + a.size))
                 hazards.append(
                     FalseSharingHazard(
-                        cache_line_index=a.cache_line_start,
+                        cache_line_index=overlap_start,
                         field_a=a.name,
                         field_b=b.name,
                         byte_distance=dist,
@@ -845,10 +1067,10 @@ def generate_refactored_code(
         for f, pf in zip(fields, report.placed_fields):
             arr_suffix = ""
             base_t = f.raw_type
-            m = re.match(r"^(.+)\[(\d+)\]$", f.raw_type)
+            m = re.match(r"^(.+?)((?:\[\d+\])+)$", f.raw_type)
             if m:
                 base_t = m.group(1)
-                arr_suffix = f"[{m.group(2)}]"
+                arr_suffix = m.group(2)
             lines.append(
                 f"    {base_t} {f.name}{arr_suffix}; "
                 f"// offset: {pf.offset:2d}B | size: {pf.size:2d}B | align: {pf.align}B"

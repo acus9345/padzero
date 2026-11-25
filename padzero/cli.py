@@ -99,12 +99,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Exit with code 1 if struct can be packed smaller (for CI gates)",
     )
     args = parser.parse_args(argv)
+    if args.instances < 0:
+        parser.error("--instances must be non-negative")
 
     if args.target in PRESETS:
         preset = PRESETS[args.target]
         source = preset["code"]
         lang = preset["language"] if args.lang == "auto" else args.lang
-    elif os.path.exists(args.target):
+    elif os.path.isfile(args.target):
         with open(args.target, encoding="utf-8") as f:
             source = f.read()
         lang = args.lang
